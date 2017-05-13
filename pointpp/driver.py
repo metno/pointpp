@@ -1,6 +1,6 @@
-import sys
 import argparse
 import numpy as np
+import shutil
 import verif.input
 import verif.metric
 import pointpp.version
@@ -12,7 +12,7 @@ def run(argv):
    parser = argparse.ArgumentParser(prog="ppverif", description="Hybrid weather generator, combining stochastic and physical modelling")
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('file', help="Input file", nargs="?")
-   parser.add_argument('-o', metavar="FILE", help="Output filename", required=True, dest="ofilename")
+   parser.add_argument('-o', metavar="FILE", help="Output filename", required=True, dest="ofile")
    parser.add_argument('-c', metavar="METHOD", help="Method", required=True, dest="method")
    parser.add_argument('-m', metavar="METRIC", help="Optimization metric", dest="metric")
 
@@ -38,6 +38,8 @@ def run(argv):
    x, y = method.get_curve(obs, fcst, -30, 30)
    mpl.plot(x, y, 'k-o')
    mpl.show()
+   if args.file is not None and args.ofile is not None:
+      shutil.copyfile(args.file, args.ofile)
 
 
 if __name__ == '__main__':
