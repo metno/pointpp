@@ -1,0 +1,7 @@
+scipy
+numpy>=1.7
+matplotlib<2
+coveralls
+pep8
+netCDF4
+verif==1.0.0
