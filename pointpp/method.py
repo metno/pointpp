@@ -23,6 +23,9 @@ def get(name):
    for method in methods:
       if name == method[0].lower():  # and method[1].is_valid():
          m = method[1]()
+   if m is None:
+      verif.util.error("Could not find method '%s'" % name)
+
    return m
 
 

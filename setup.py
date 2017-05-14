@@ -101,6 +101,7 @@ setup(
     entry_points={
         'console_scripts': [
             'pointpp=pointpp:main',
+            'pointgen=pointpp:pointgen',
         ],
     },
 )
