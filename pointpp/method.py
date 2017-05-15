@@ -92,6 +92,16 @@ class Clim(Method):
       return [x,mean + 0*x]
 
 
+class Persistence(Method):
+   name = "Persistence"
+
+   def __init__(self, nbins=None):
+      pass
+
+   def _calibrate(self, Otrain, Ftrain, Feval):
+      return Otrain[0] * np.ones(len(Feval))
+
+
 class Regression(Method):
    name = "Linear regression"
 
