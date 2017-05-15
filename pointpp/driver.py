@@ -14,8 +14,10 @@ def run(argv):
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('file', help="Input file", nargs="?")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
-   parser.add_argument('-c', metavar="METHOD", help="Method", required=True, dest="method")
-   parser.add_argument('-m', metavar="METRIC", help="Optimization metric", dest="metric")
+   parser.add_argument('-m', metavar="METHOD", help="Optimization method", dest="method")
+   parser.add_argument('-loc', help="Post-process each station independently?", dest="location_independent", action="store_true")
+   parser.add_argument('-lt', help="Post-process each leadtime independently?", dest="leadtime_independent", action="store_true")
+   parser.add_argument('-tt', type=int, help="Training time", dest="ttime")
 
    args = parser.parse_args()
 
@@ -32,16 +34,34 @@ def run(argv):
       obs = control + 0*np.random.normal(0, sigma, N)
       fcst = control + np.random.normal(0, sigma, N)
 
-   if args.method == "mymethod":
-       metric = verif.metric.get(args.metric)
+   method = pointpp.method.get(args.method)
+   if method is None:
+       metric = verif.metric.get(args.method)
+       if metric is None:
+           verif.util.error("Could not understand '%s'" % args.method)
        method = pointpp.method.MyMethod(metric, nbins=100, monotonic=True)
-   else:
-       method = pointpp.method.get(args.method)
 
    if args.file is not None and args.ofile is not None:
       shutil.copyfile(args.file, args.ofile)
-      fcst2 = method.calibrate(obs, fcst, fcst)
-      fcst2_ar = np.reshape(fcst2, fcst_ar.shape)
+      if args.method == "persistence":
+          fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+          # if len(obs_ar.shape) == 1:
+          #     np.expand_dims(obs_ar, 1)
+          # if len(obs_ar.shape) == 2:
+          #     np.expand_dims(obs_ar, 2)
+          for i in range(obs_ar.shape[0]):
+              for j in range(obs_ar.shape[2]):
+                  fcst2_ar [i, :, j] = method.calibrate(obs_ar[i, :, j], fcst_ar[i, :, j], fcst_ar[i, :, j])
+      else:
+
+          if args.location_independent and args.leadtime_independent:
+              fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+              for i in range(obs_ar.shape[1]):
+                  for j in range(obs_ar.shape[2]):
+                      fcst2_ar[:, i, j] = method.calibrate(obs_ar[:, i, j], fcst_ar[:, i, j], fcst_ar[:, i, j])
+          else:
+              fcst2 = method.calibrate(obs, fcst, fcst)
+              fcst2_ar = np.reshape(fcst2, fcst_ar.shape)
       fid = netCDF4.Dataset(args.ofile, 'a')
       print "Writing"
       fid.variables["fcst"][:] = fcst2_ar

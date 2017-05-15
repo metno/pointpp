@@ -23,8 +23,6 @@ def get(name):
    for method in methods:
       if name == method[0].lower():  # and method[1].is_valid():
          m = method[1]()
-   if m is None:
-      verif.util.error("Could not find method '%s'" % name)
 
    return m
 
@@ -45,7 +43,13 @@ class Method(object):
       Returns: Calibrated forecasts (size M)
       """
       I = np.where((np.isnan(Otrain) == 0) & (np.isnan(Ftrain) == 0))[0]
-      return self._calibrate(Otrain[I], Ftrain[I], Feval)
+      if len(I) == 0:
+         return np.nan*np.zeros(Feval.shape)
+      Ieval = np.where(np.isnan(Feval) == 0)[0]
+      x = np.nan*np.zeros(Feval.shape)
+      if len(Ieval) > 0:
+         x[Ieval] = self._calibrate(Otrain[I], Ftrain[I], Feval[Ieval])
+      return x
 
    """
    Subclass interface
@@ -190,7 +194,7 @@ class Curve(Method):
       raise NotImplementedError()
 
 
-class QuantileQuantile(Curve):
+class Qq(Curve):
    """
    Create calibrate forecasts that have the same histogram as the observations
    F -> Fcal | E[F < O] = E[F < Fcal] ...?
@@ -306,6 +310,7 @@ class MyMethod(Curve):
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       y = np.linspace(xmin, xmax, self._nbins)
       I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
+      assert(len(I) > 0)
       y = y[I]
 
       x = -np.ones(len(y), 'float')
