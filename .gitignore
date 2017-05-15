@@ -6,6 +6,7 @@ build
 .coverage
 cover
 .*.swp
+*.nc
 deb_dist
 test.csh
 testPlots/
