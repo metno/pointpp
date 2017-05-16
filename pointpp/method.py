@@ -96,7 +96,7 @@ class Clim(Method):
       return [x,mean + 0*x]
 
 
-class Persistence(Method):
+class Pers(Method):
    name = "Persistence"
 
    def __init__(self, nbins=None):
@@ -106,7 +106,7 @@ class Persistence(Method):
       return Otrain[0] * np.ones(len(Feval))
 
 
-class ForecastPersistence(Method):
+class Fpers(Method):
    name = "Forecast persistence"
 
    def __init__(self, nbins=None):
