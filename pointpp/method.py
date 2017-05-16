@@ -106,6 +106,16 @@ class Persistence(Method):
       return Otrain[0] * np.ones(len(Feval))
 
 
+class ForecastPersistence(Method):
+   name = "Forecast persistence"
+
+   def __init__(self, nbins=None):
+      pass
+
+   def _calibrate(self, Otrain, Ftrain, Feval):
+      return Ftrain[0] * np.ones(len(Feval))
+
+
 class Regression(Method):
    name = "Linear regression"
 

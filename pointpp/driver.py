@@ -14,7 +14,7 @@ def run(argv):
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('file', help="Input file", nargs="?")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
-   parser.add_argument('-m', metavar="METHOD", help="Optimization method", dest="method")
+   parser.add_argument('-m', metavar="METHOD", help="Optimization method", required=True, dest="method")
    parser.add_argument('-loc', help="Post-process each station independently?", dest="location_independent", action="store_true")
    parser.add_argument('-lt', help="Post-process each leadtime independently?", dest="leadtime_independent", action="store_true")
    parser.add_argument('-tt', type=int, help="Training time", dest="ttime")
@@ -43,7 +43,7 @@ def run(argv):
 
    if args.file is not None and args.ofile is not None:
       shutil.copyfile(args.file, args.ofile)
-      if args.method == "persistence":
+      if args.method == "persistence" or args.method == "forecastpersistence":
           fcst2_ar = np.nan * np.zeros(obs_ar.shape)
           # if len(obs_ar.shape) == 1:
           #     np.expand_dims(obs_ar, 1)
