@@ -13,6 +13,7 @@ def run(argv):
    parser = argparse.ArgumentParser(prog="ppverif", description="Hybrid weather generator, combining stochastic and physical modelling")
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('file', help="Input file")
+   parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of bins", dest="num_bins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
    parser.add_argument('-m', metavar="METHOD", help="Optimization method", required=True, dest="method")
    parser.add_argument('-loc', help="Post-process each station independently?", dest="location_dependent", action="store_true")
@@ -32,7 +33,7 @@ def run(argv):
       metric = verif.metric.get(args.method)
       if metric is None:
          verif.util.error("Could not understand '%s'" % args.method)
-      method = pointpp.method.MyMethod(metric, nbins=100, monotonic=True)
+      method = pointpp.method.MyMethod(metric, nbins=args.num_bins, monotonic=True)
 
    D = obs_ar.shape[0]
    LT = obs_ar.shape[1]
