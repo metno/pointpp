@@ -76,8 +76,9 @@ def run(argv):
       fid.variables["fcst"][:] = fcst2_ar
       fid.close()
    else:
-      x, y = method.get_curve(obs, fcst, np.nanmin(fcst), np.nanmax(fcst))
-      mpl.plot(fcst, obs, 'r.', alpha=0.3)
+      I = np.where((np.isnan(obs) == 0) & (np.isnan(fcst) == 0))[0]
+      x, y = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+      mpl.plot(fcst[I], obs[I], 'r.', alpha=0.3)
       mpl.plot(x, y, 'k-o')
       #mpl.plot([-10, 10], [-10, 10], '-', lw=2, color="gray")
       mpl.gca().set_aspect(1)
