@@ -146,6 +146,58 @@ class Regression(Method):
       return [x,a+b*x]
 
 
+class Multiplicative(Method):
+   name = "Multiplicative correction"
+
+   def __init__(self, nbins=2):
+      self._nbins  = nbins
+
+   def _calibrate(self, Otrain, Ftrain, Feval):
+      b = self._get_coefficients(Otrain, Ftrain)
+      return b * Feval
+
+   def _get_coefficients(self, Otrain, Ftrain):
+      mF = np.mean(Ftrain)
+      mO = np.mean(Otrain)
+      mOF = np.mean(Otrain*Ftrain)
+      mFF = np.mean(Ftrain*Ftrain)
+      if(mF != 0):
+         b = (mO / mF)
+      else:
+         Common.warning("Unstable regression")
+         b = 1
+      return b
+
+
+   def get_curve(self, Otrain, Ftrain, xmin, xmax):
+      b = self._get_coefficients(Otrain, Ftrain)
+      x = np.linspace(xmin,xmax,self._nbins)
+      return x, b*x
+
+
+class Additive(Method):
+   name = "Additive correction"
+
+   def __init__(self, nbins=2):
+      self._nbins  = nbins
+
+   def _calibrate(self, Otrain, Ftrain, Feval):
+      a = self._get_coefficients(Otrain, Ftrain)
+      return a + Feval
+
+   def _get_coefficients(self, Otrain, Ftrain):
+      mF = np.mean(Ftrain)
+      mO = np.mean(Otrain)
+      a = (mO - mF)
+      return a
+
+
+   def get_curve(self, Otrain, Ftrain, xmin, xmax):
+      a = self._get_coefficients(Otrain, Ftrain)
+      x = np.linspace(xmin,xmax,self._nbins)
+      return x, a + x
+
+
 """
 Abstract base class
 """
