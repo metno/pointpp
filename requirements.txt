@@ -4,4 +4,4 @@ matplotlib<2
 coveralls
 pep8
 netCDF4
-verif==1.0.0
+verif>=1.0.0
