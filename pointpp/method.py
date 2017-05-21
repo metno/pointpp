@@ -32,6 +32,7 @@ class Method(object):
    """
    Public interface
    """
+   _debug = False
    def calibrate(self, Otrain, Ftrain, Feval):
       """
       Using training observations and forecasts, output the calibrated
@@ -65,6 +66,10 @@ class Method(object):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       raise NotImplementedError()
+
+   def debug(self, msg):
+      if self._debug:
+         print msg
 
 
 class Raw(Method):
@@ -350,8 +355,7 @@ class MyMethod(Curve):
       if(self._min_obs > 0):
          sortobs = np.sort(Otrain)
          if len(sortobs) < self._min_obs*2:
-            print "Too few data points when min_obs is set"
-            sys.exit()
+            verif.util.error("Too few data points when min_obs is set")
          I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
          y = y[I]
       # y = np.array([-15, -14, -13, -10, -5, 0, 5])
@@ -365,8 +369,7 @@ class MyMethod(Curve):
       elif self._solver == "old":
          x = self.get_curve_old(Otrain, Ftrain, y)
       else:
-         print "Invalid solver"
-         sys.exit()
+         verif.uilt.error("Invalid solver")
       # sys.exit()
 
       if self._monotonic:
@@ -443,7 +446,7 @@ class MyMethod(Curve):
             # This gives slighly different results than the default method,
             # mainly due to the exact numerics of this:
             xx = np.linspace(lastX - 8, lastX + 8,N)
-         # print "%f Searching (%f %f)" % (y[i], xx[0], xx[-1])
+         self.debug("%f Searching (%f %f)" % (y[i], xx[0], xx[-1]))
 
          """
          Compute the score for each possible perturbation
@@ -492,21 +495,21 @@ class MyMethod(Curve):
             if 1:
                # Don't make a point if the score is too low
                if self._metric.orientation == 1 and self._min_score is not None and bestScore < self._min_score:
-                  # print "Removing"
+                  self.debug("Removing")
                   x[i] = np.nan
                elif np.max(scores) - np.min(scores) < 0:
-                  # print "Not enough spread in scores"
+                  self.debug("Not enough spread in scores")
                   x[i] = np.nan
                # If the score at the edge is best, set to extreme most forecast
                elif(scores[0] > bestScore*0.999):
-                  # print "Upper edge"
+                  self.debug("Lower edge")
                   x[i] = np.nanmin(Ftrain)
                elif(scores[-1] > bestScore*0.999):
-                  # print "Lower edge"
+                  self.debug("Upper edge")
                   x[i] = np.nanmax(Ftrain)
          # No valid data, use monotonic
          else:
-            print "No valid data for %f" % y[i]
+            self.debug("No valid data for %f" % y[i])
             if(i > 1):
                x[i] = x[i-1]
             else:
@@ -514,7 +517,7 @@ class MyMethod(Curve):
             dx = 0
          if not np.isnan(x[i]):
             lastX = x[i]
-            # print "LastX %f" % (lastX)
+            self.debug("LastX %f" % (lastX))
 
       if 1:
          # Remove repeated end points
@@ -546,13 +549,11 @@ class MyMethod(Curve):
             dxs = np.linspace(lastDx - 8,lastDx + 8,N)
 
          currY = y[i]
-         # print "%f Searching (%f %f)" % (y[i], currY-dxs[-1], currY-dxs[0])
-         # print lastX, lastDx
+         self.debug("%f Searching (%f %f)" % (y[i], currY-dxs[-1], currY-dxs[0]))
 
          """
          Compute the score for each possible perturbation
          """
-         # print dxs
          for k in range(0,len(dxs)):
             dx = dxs[k]
             interval = verif.interval.Interval(currY, np.inf, False, True)
@@ -579,7 +580,6 @@ class MyMethod(Curve):
             # Find the best score
             bestScore = np.max(scores[Ivalid])
             Ibest = np.where(scores[Ivalid] == bestScore)[0]
-            # print scores
             if len(Ibest) > 1:
                # Multiple best ones
                II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
@@ -608,21 +608,21 @@ class MyMethod(Curve):
             if 1:
                # Don't make a point if the score is too low
                if self._metric.orientation == 1 and self._min_score is not None and bestScore < self._min_score:
-                  # print "Removing"
+                  self.debug("Removing")
                   x[i] = np.nan
                elif np.max(scores) - np.min(scores) < 0:
-                  # print "Not enough spread in scores"
+                  self.debug("Not enough spread in scores")
                   x[i] = np.nan
                # If the score at the edge is best, set to extreme most forecast
                elif(scores[-1] > bestScore*0.999):
-                  # print "Upper edge"
+                  self.debug("Upper edge")
                   x[i] = np.nanmin(Ftrain)
                elif(scores[0] > bestScore*0.999):
-                  # print "Lower edge"
+                  self.debug("Lower edge")
                   x[i] = np.nanmax(Ftrain)
          # No valid data, use monotonic
          else:
-            print "No valid data for %f" % y[i]
+            self.debug("No valid data for %f" % y[i])
             if(i > 1):
                x[i] = x[i-1]
             else:
@@ -630,7 +630,7 @@ class MyMethod(Curve):
             dx = 0
          lastX = x[i]
          lastDx = dx
-         # print "LastX %f %f" % (lastX, lastDx)
+         self.debug("LastX %f %f" % (lastX, lastDx))
 
       if 1:
          # Remove repeated end points

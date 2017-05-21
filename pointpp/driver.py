@@ -13,6 +13,7 @@ import netCDF4
 def run(argv):
    parser = argparse.ArgumentParser(prog="ppverif", description="Hybrid weather generator, combining stochastic and physical modelling")
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
+   parser.add_argument('--debug', help="Show debug information", action="store_true")
    parser.add_argument('file', help="Input file")
    parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of bins", dest="num_bins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
@@ -48,6 +49,7 @@ def run(argv):
             monotonic=args.mono, resample=args.resample,
             midpoint=args.midpoint, min_obs=args.min_obs,
             min_score=args.min_score, solver=args.solver)
+      method._debug = args.debug
 
    D = obs_ar.shape[0]
    LT = obs_ar.shape[1]
