@@ -28,6 +28,7 @@ def run(argv):
    parser.add_argument('-ms', type=float, help="Minimum score to get a point", dest="min_score")
    parser.add_argument('-c', help="Write curve to this file", dest="curve_file")
    parser.add_argument('-y', type=float, help="Create curve for this y value")
+   parser.add_argument('-type', help="One of fmin sum or None")
 
    args = parser.parse_args()
 
@@ -98,7 +99,15 @@ def run(argv):
          mpl.grid()
          mpl.show()
       else:
-          x, y, = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          import time as timing
+          s = timing.time()
+          if args.type == "fmin":
+             x, y, = method.get_curve_fmin(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          elif args.type == "sum":
+             x, y, = method.get_curve_sum(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          else:
+             x, y, = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          print timing.time() - s
           if args.curve_file is not None:
              file = open(args.curve_file, 'w')
              file.write("unixtime obs fcst\n")
