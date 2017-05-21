@@ -305,7 +305,7 @@ class InverseConditional(Curve):
 class MyMethod(Curve):
    """ Optimizes forecasts relative to a metric """
 
-   def __init__(self, metric, nbins=30, monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None):
+   def __init__(self, metric, nbins=30, monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
       self._metric = metric
       self._nbins  = nbins
       self._monotonic = monotonic
@@ -313,6 +313,7 @@ class MyMethod(Curve):
       self._midpoint = midpoint
       self._min_obs = min_obs
       self._min_score = min_score
+      self._solver = solver
 
    def name(self):
       className = self._metric.getClassName()
@@ -340,84 +341,6 @@ class MyMethod(Curve):
          scores = -scores
       return x, scores
 
-   def get_curve_fmin(self, Otrain, Ftrain, xmin, xmax):
-      y = np.linspace(xmin, xmax, self._nbins)
-      I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
-      assert(len(I) > 0)
-      y = y[I]
-
-      if(self._min_obs > 0):
-         sortobs = np.sort(Otrain)
-         if len(sortobs) < self._min_obs*2:
-            print "Too few data points when min_obs is set"
-            sys.exit()
-         I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
-         y = y[I]
-
-      x = np.nan*np.ones(len(y), 'float')
-      import scipy.optimize
-
-      for i in range(0, len(y)):
-         # pointpp.util.progress_bar(float(i) / len(y), 80) 
-         interval = verif.interval.Interval(y[i], np.inf, False, True)
-         f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
-         f2 = lambda x: x*self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
-         fs = lambda x: self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
-         max_x = scipy.optimize.fmin(f, y[i], xtol=0.1, disp=False)
-         x[i] = max_x
-
-      return x, y
-
-   def get_curve_sum(self, Otrain, Ftrain, xmin, xmax):
-      y = np.linspace(xmin, xmax, self._nbins)
-      I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
-      assert(len(I) > 0)
-      y = y[I]
-
-      if(self._min_obs > 0):
-         sortobs = np.sort(Otrain)
-         if len(sortobs) < self._min_obs*2:
-            print "Too few data points when min_obs is set"
-            sys.exit()
-         I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
-         y = y[I]
-
-      x = np.nan*np.ones(len(y), 'float')
-      scores = np.zeros([len(y)], 'float')
-      for i in range(0, len(y)):
-         """
-         Compute the score for each possible perturbation
-         """
-         for k in range(0,len(y)):
-            interval = verif.interval.Interval(y[i], np.inf, False, True)
-            f_interval = verif.interval.Interval(y[k], np.inf, False, True)
-            scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
-         if self._metric.orientation != 1:
-            scores = -scores
-
-         Ivalid = np.where(np.isnan(scores) == 0)[0]
-         if len(Ivalid) > 0:
-            x[i] = np.sum(scores[Ivalid] * y[Ivalid]) / np.sum(scores[Ivalid])
-
-      # Make curve monotonic
-      if(self._monotonic):
-         halfway = len(x) / 2
-         for i in range(0, halfway-1):
-            if x[i] > np.nanmin(x[i:-1]):
-               x[i] = np.nan
-            # x[i] = np.min(x[i:halfway])
-         for i in range(halfway+1, len(x)):
-            if x[i] < np.nanmax(x[0:i]):
-               x[i] = np.nan
-            # x[i] = np.max(x[0:(i+1)])
-
-      # Remove missing
-      I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
-      x = x[I]
-      y = y[I]
-
-      return x, y
-
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       y = np.linspace(xmin, xmax, self._nbins)
       I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
@@ -432,14 +355,80 @@ class MyMethod(Curve):
          I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
          y = y[I]
 
+      if self._solver == "default":
+         x = self.get_curve_default(Otrain, Ftrain, y)
+      elif self._solver == "fmin":
+         x = self.get_curve_fmin(Otrain, Ftrain, y)
+      elif self._solver == "sum": 
+         x = self.get_curve_sum(Otrain, Ftrain, y)
+      else:
+         print "Invalid solver"
+         sys.exit()
+
+      if self._monotonic:
+         halfway = len(x) / 2
+         for i in range(0, halfway-1):
+            if x[i] > np.nanmin(x[i:-1]):
+               x[i] = np.nan
+            # x[i] = np.min(x[i:halfway])
+         for i in range(halfway+1, len(x)):
+            if x[i] < np.nanmax(x[0:i]):
+               x[i] = np.nan
+            # x[i] = np.max(x[0:(i+1)])
+
+      # Remove missing
+      I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
+      x = x[I]
+      y = y[I]
+      return x, y
+
+   def get_curve_fmin(self, Otrain, Ftrain, y):
+      """
+      Pros: Fast
+      Cons: Not robust when the peak is flat
+      """
       x = np.nan*np.ones(len(y), 'float')
-      lower = -np.ones(len(y), 'float')
-      upper = -np.ones(len(y), 'float')
+      import scipy.optimize
+
+      for i in range(0, len(y)):
+         interval = verif.interval.Interval(y[i], np.inf, False, True)
+         f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
+         x[i] = scipy.optimize.fmin(f, y[i], xtol=0.1, disp=False)
+
+      return x
+
+   def get_curve_sum(self, Otrain, Ftrain, y):
+      """
+      Pros: Robust
+      Cons: Does it work for PC?
+      """
+      x = np.nan*np.ones(len(y), 'float')
+      scores = np.zeros([len(y)], 'float')
+      # Loop over observation thresholds
+      for i in range(0, len(y)):
+         # Integrate over all forecast thresholds
+         for k in range(0,len(y)):
+            interval = verif.interval.Interval(y[i], np.inf, False, True)
+            f_interval = verif.interval.Interval(y[k], np.inf, False, True)
+            scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+
+         Ivalid = np.where(np.isnan(scores) == 0)[0]
+         total_score = np.nansum(scores)
+         if not np.isnan(total_score) and total_score != 0:
+            x[i] = np.nansum(scores * y) / total_score
+
+      return x
+
+   def get_curve_default(self, Otrain, Ftrain, y):
+      x = np.nan*np.ones(len(y), 'float')
       N = 100
       scores = np.zeros([N], 'float')
       lastX  = np.min(y)-8
       lastDx = None
       for i in range(0, len(y)):
+         """
+         Compute the score for each possible perturbation
+         """
          # Determine dxs
          if(lastDx == None):
             # On the first iteration, test a large range of values
@@ -539,21 +528,4 @@ class MyMethod(Curve):
          if(len(I) > 1):
             x[I[1:]] = np.nan
 
-      # Make curve monotonic
-      if(self._monotonic):
-         halfway = len(x) / 2
-         for i in range(0, halfway-1):
-            if x[i] > np.nanmin(x[i:-1]):
-               x[i] = np.nan
-            # x[i] = np.min(x[i:halfway])
-         for i in range(halfway+1, len(x)):
-            if x[i] < np.nanmax(x[0:i]):
-               x[i] = np.nan
-            # x[i] = np.max(x[0:(i+1)])
-
-      # Remove missing
-      I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
-      x = x[I]
-      y = y[I]
-
-      return x, y
+      return x

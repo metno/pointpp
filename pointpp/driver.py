@@ -28,7 +28,7 @@ def run(argv):
    parser.add_argument('-ms', type=float, help="Minimum score to get a point", dest="min_score")
    parser.add_argument('-c', help="Write curve to this file", dest="curve_file")
    parser.add_argument('-y', type=float, help="Create curve for this y value")
-   parser.add_argument('-type', help="One of fmin sum or None")
+   parser.add_argument('-s', default="default", help="One of fmin sum or None", dest="solver")
 
    args = parser.parse_args()
 
@@ -43,7 +43,11 @@ def run(argv):
       metric = verif.metric.get(args.method)
       if metric is None:
          verif.util.error("Could not understand '%s'" % args.method)
-      method = pointpp.method.MyMethod(metric, nbins=args.num_bins, monotonic=args.mono, resample=args.resample, midpoint=args.midpoint, min_obs=args.min_obs, min_score=args.min_score)
+
+      method = pointpp.method.MyMethod(metric, nbins=args.num_bins,
+            monotonic=args.mono, resample=args.resample,
+            midpoint=args.midpoint, min_obs=args.min_obs,
+            min_score=args.min_score, solver=args.solver)
 
    D = obs_ar.shape[0]
    LT = obs_ar.shape[1]
@@ -101,12 +105,7 @@ def run(argv):
       else:
           import time as timing
           s = timing.time()
-          if args.type == "fmin":
-             x, y, = method.get_curve_fmin(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
-          elif args.type == "sum":
-             x, y, = method.get_curve_sum(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
-          else:
-             x, y, = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          x, y, = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
           print timing.time() - s
           if args.curve_file is not None:
              file = open(args.curve_file, 'w')
