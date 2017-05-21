@@ -354,16 +354,20 @@ class MyMethod(Curve):
             sys.exit()
          I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
          y = y[I]
+      # y = np.array([-15, -14, -13, -10, -5, 0, 5])
 
       if self._solver == "default":
          x = self.get_curve_default(Otrain, Ftrain, y)
       elif self._solver == "fmin":
          x = self.get_curve_fmin(Otrain, Ftrain, y)
-      elif self._solver == "sum": 
+      elif self._solver == "sum":
          x = self.get_curve_sum(Otrain, Ftrain, y)
+      elif self._solver == "old":
+         x = self.get_curve_old(Otrain, Ftrain, y)
       else:
          print "Invalid solver"
          sys.exit()
+      # sys.exit()
 
       if self._monotonic:
          halfway = len(x) / 2
@@ -424,6 +428,110 @@ class MyMethod(Curve):
       N = 100
       scores = np.zeros([N], 'float')
       lastX  = np.min(y)-8
+      started = False
+      for i in range(0, len(y)):
+         """
+         Compute the score for each possible perturbation
+         """
+         # Determine dxs
+         if not started:
+            # On the first iteration, test a large range of values
+            xx = y[0] + np.linspace(-30,30,N) # 0.1 increments
+            started = True
+         else:
+            # The change in dx from one threshold to the next is unlikely to change a lot
+            # This gives slighly different results than the default method,
+            # mainly due to the exact numerics of this:
+            xx = np.linspace(lastX - 8, lastX + 8,N)
+         # print "%f Searching (%f %f)" % (y[i], xx[0], xx[-1])
+
+         """
+         Compute the score for each possible perturbation
+         """
+         for k in range(len(xx)):
+            interval = verif.interval.Interval(y[i], np.inf, False, True)
+            f_interval = verif.interval.Interval(xx[k], np.inf, False, True)
+            scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+         if self._metric.orientation != 1:
+            scores = -scores
+
+         Ivalid = np.where(np.isnan(scores) == 0)[0]
+         xx = xx[Ivalid]
+         scores = scores[Ivalid]
+         if len(Ivalid) > 0:
+            # Find the best score
+            bestScore = np.max(scores)
+            Ibest = np.where(scores == bestScore)[0]
+            # print scores
+            if self._midpoint == 1:
+               if len(Ibest) > 1:
+                  # Multiple best ones
+                  II = np.where(xx[Ibest] > lastX)[0]
+                  if len(II) > 0:
+                     # Use the nearest threshold above the previous
+                     x[i] = xx[Ibest[II[0]]]
+                  else:
+                     # Use the highest possible threshold
+                     # x[i] = y[i]
+                     # The following 
+                     x[i] = xx[Ibest[-1]]
+               else:
+                  if(Ibest == len(scores)):
+                     Common.error("Edge problem")
+                  x[i] = xx[Ibest]
+            else:
+               ref = np.max(scores[0], scores[-1]) 
+               Ilower = np.where((scores-ref) > self._midpoint * (bestScore-ref))[0]
+               if len(Ilower) > 0:
+                  lower = xx[Ilower[0]]
+                  upper = xx[Ilower[-1]]
+                  midpoint = (lower + upper)/2
+                  # print y[i], Ilower, lower, upper, midpoint, scores[0], bestScore, scores[-1]
+                  x[i] = midpoint
+
+            if 1:
+               # Don't make a point if the score is too low
+               if self._metric.orientation == 1 and self._min_score is not None and bestScore < self._min_score:
+                  # print "Removing"
+                  x[i] = np.nan
+               elif np.max(scores) - np.min(scores) < 0:
+                  # print "Not enough spread in scores"
+                  x[i] = np.nan
+               # If the score at the edge is best, set to extreme most forecast
+               elif(scores[0] > bestScore*0.999):
+                  # print "Upper edge"
+                  x[i] = np.nanmin(Ftrain)
+               elif(scores[-1] > bestScore*0.999):
+                  # print "Lower edge"
+                  x[i] = np.nanmax(Ftrain)
+         # No valid data, use monotonic
+         else:
+            print "No valid data for %f" % y[i]
+            if(i > 1):
+               x[i] = x[i-1]
+            else:
+               x[i] = y[i]
+            dx = 0
+         if not np.isnan(x[i]):
+            lastX = x[i]
+            # print "LastX %f" % (lastX)
+
+      if 1:
+         # Remove repeated end points
+         I = np.where(x == np.min(Ftrain))[0]
+         if(len(I) > 1):
+            x[I[0:-1]] = np.nan
+         I = np.where(x == np.max(Ftrain))[0]
+         if(len(I) > 1):
+            x[I[1:]] = np.nan
+
+      return x
+
+   def get_curve_old(self, Otrain, Ftrain, y):
+      x = np.nan*np.ones(len(y), 'float')
+      N = 100
+      scores = np.zeros([N], 'float')
+      lastX  = np.min(y)-8
       lastDx = None
       for i in range(0, len(y)):
          """
@@ -438,10 +546,13 @@ class MyMethod(Curve):
             dxs = np.linspace(lastDx - 8,lastDx + 8,N)
 
          currY = y[i]
+         # print "%f Searching (%f %f)" % (y[i], currY-dxs[-1], currY-dxs[0])
+         # print lastX, lastDx
 
          """
          Compute the score for each possible perturbation
          """
+         # print dxs
          for k in range(0,len(dxs)):
             dx = dxs[k]
             interval = verif.interval.Interval(currY, np.inf, False, True)
@@ -468,6 +579,7 @@ class MyMethod(Curve):
             # Find the best score
             bestScore = np.max(scores[Ivalid])
             Ibest = np.where(scores[Ivalid] == bestScore)[0]
+            # print scores
             if len(Ibest) > 1:
                # Multiple best ones
                II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
@@ -518,6 +630,7 @@ class MyMethod(Curve):
             dx = 0
          lastX = x[i]
          lastDx = dx
+         # print "LastX %f %f" % (lastX, lastDx)
 
       if 1:
          # Remove repeated end points
