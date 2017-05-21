@@ -328,6 +328,20 @@ class MyMethod(Curve):
          className = className.upper() 
       return className + "-optimizer"
 
+   def compute_scores(self, Otrain, Ftrain, obs_threshold, fcst_thresholds):
+      interval = verif.interval.Interval(obs_threshold, np.inf, False, True)
+      scores = np.zeros(len(fcst_thresholds))
+      for k in range(len(fcst_thresholds)):
+         f_interval = verif.interval.Interval(fcst_thresholds[k], np.inf, False, True)
+         scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+      if self._metric.orientation != 1:
+         scores = -scores
+
+      Ivalid = np.where(np.isnan(scores) == 0)[0]
+      fcst_thresholds = fcst_thresholds[Ivalid]
+      scores = scores[Ivalid]
+      return scores, fcst_thresholds
+
    def get_single_curve(self, Otrain, Ftrain, threshold, xmin=None, xmax=None):
       if xmin is None:
          xmin = np.nanmin(Ftrain)
@@ -362,6 +376,8 @@ class MyMethod(Curve):
 
       if self._solver == "default":
          x = self.get_curve_default(Otrain, Ftrain, y)
+      elif self._solver == "new":
+         x = self.get_curve_new(Otrain, Ftrain, y)
       elif self._solver == "fmin":
          x = self.get_curve_fmin(Otrain, Ftrain, y)
       elif self._solver == "sum":
@@ -426,6 +442,100 @@ class MyMethod(Curve):
 
       return x
 
+   def get_curve_new(self, Otrain, Ftrain, y):
+      x = np.nan*np.ones(len(y), 'float')
+      N = 100
+      lastX  = np.nanmean(Otrain)
+      # Do a quick scan to find an approximate area to start
+      xx = np.linspace(np.min(Otrain), np.max(Otrain), N)
+      scores, xx = self.compute_scores(Otrain, Ftrain, y[len(y)/2], xx)
+      bestScore = np.max(scores)
+      Ibest = np.where(scores == bestScore)[0]
+      middleX = xx[Ibest[0]]
+      """
+      Start creating the line from the middle. That is process the upper half
+      first, starting from the bottom, then process the lower half from the top.
+      """
+      upper_half = range(len(y)/2, len(y))
+      lower_half = range(0, len(y)/2)[::-1]
+
+      for yrange in [upper_half, lower_half]:
+         # Reset
+         hit_edge = False
+         lastX = middleX
+
+         for i in yrange:
+            """ Skip the rest of the line if we have hit the edges """
+            if hit_edge:
+               continue
+
+            xx = np.linspace(lastX - 3, lastX + 3, N)
+            self.debug("%f Searching (%f %f)" % (y[i], xx[0], xx[-1]))
+
+            scores, xx = self.compute_scores(Otrain, Ftrain, y[i], xx)
+
+            if len(scores) > 0:
+               # Find the best score
+               bestScore = np.max(scores)
+               print bestScore
+               Ibest = np.where(scores == bestScore)[0]
+               if self._midpoint == 1:
+                  if len(Ibest) > 1:
+                     # Multiple best ones
+                     II = np.where(xx[Ibest] > lastX)[0]
+                     if len(II) > 0:
+                        # Use the nearest threshold above the previous
+                        x[i] = xx[Ibest[II[0]]]
+                     else:
+                        # Use the highest possible threshold
+                        # x[i] = y[i]
+                        # The following
+                        x[i] = xx[Ibest[-1]]
+                  else:
+                     if(Ibest == len(scores)):
+                        Common.error("Edge problem")
+                     x[i] = xx[Ibest]
+               else:
+                  ref = np.max(scores[0], scores[-1])
+                  Ilower = np.where((scores-ref) > self._midpoint * (bestScore-ref))[0]
+                  if len(Ilower) > 0:
+                     lower = xx[Ilower[0]]
+                     upper = xx[Ilower[-1]]
+                     midpoint = (lower + upper)/2
+                     # print y[i], Ilower, lower, upper, midpoint, scores[0], bestScore, scores[-1]
+                     x[i] = midpoint
+
+               # Don't make a point if the score is too low
+               if self._metric.orientation == 1 and self._min_score is not None and bestScore < self._min_score:
+                  self.debug("Removing")
+                  x[i] = np.nan
+               elif np.max(scores) - np.min(scores) < 0:
+                  self.debug("Not enough spread in scores")
+                  x[i] = np.nan
+               # If the score at the edge is best, set to extreme most forecast
+               elif(scores[0] > bestScore*0.999):
+                  self.debug("Lower edge")
+                  hit_edge = True
+                  x[i] = np.nanmin(Ftrain)
+               elif(scores[-1] > bestScore*0.999):
+                  self.debug("Upper edge")
+                  hit_edge = True
+                  x[i] = np.nanmax(Ftrain)
+            # No valid data, use monotonic
+            else:
+               self.debug("No valid data for %f" % y[i])
+               if(i > 1):
+                  x[i] = x[i-1]
+               else:
+                  x[i] = y[i]
+               dx = 0
+
+            if not np.isnan(x[i]):
+               lastX = x[i]
+               self.debug("LastX %f" % (lastX))
+
+      return x
+
    def get_curve_default(self, Otrain, Ftrain, y):
       x = np.nan*np.ones(len(y), 'float')
       N = 100
@@ -443,8 +553,6 @@ class MyMethod(Curve):
             started = True
          else:
             # The change in dx from one threshold to the next is unlikely to change a lot
-            # This gives slighly different results than the default method,
-            # mainly due to the exact numerics of this:
             xx = np.linspace(lastX - 8, lastX + 8,N)
          self.debug("%f Searching (%f %f)" % (y[i], xx[0], xx[-1]))
 
@@ -546,6 +654,8 @@ class MyMethod(Curve):
             dxs = np.linspace(-30,30,N) # 0.1 increments
          else:
             # The change in dx from one threshold to the next is unlikely to change a lot
+            # This gives slighly different results than the default method,
+            # mainly due to the exact numerics of this:
             dxs = np.linspace(lastDx - 8,lastDx + 8,N)
 
          currY = y[i]
