@@ -304,10 +304,14 @@ class InverseConditional(Curve):
 class MyMethod(Curve):
    """ Optimizes forecasts relative to a metric """
 
-   def __init__(self, metric, nbins=30, monotonic=True):
+   def __init__(self, metric, nbins=30, monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None):
       self._metric = metric
       self._nbins  = nbins
       self._monotonic = monotonic
+      self._resample = resample
+      self._midpoint = midpoint
+      self._min_obs = min_obs
+      self._min_score = min_score
 
    def name(self):
       className = self._metric.getClassName()
@@ -317,13 +321,41 @@ class MyMethod(Curve):
          className = className.upper() 
       return className + "-optimizer"
 
+   def get_single_curve(self, Otrain, Ftrain, threshold, xmin=None, xmax=None):
+      if xmin is None:
+         xmin = np.nanmin(Ftrain)
+      if xmax is None:
+         xmax = np.nanmax(Ftrain)
+      x = np.linspace(xmin, xmax, 100)
+      scores = np.zeros(len(x))
+      for k in range(0,len(x)):
+         interval = verif.interval.Interval(threshold, np.inf, False, True)
+         f_interval = verif.interval.Interval(x[k], np.inf, False, True)
+         if self._resample == 1:
+            scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+         else:
+            scores[k] = self._metric.compute_from_obs_fcst_resample(Otrain, Ftrain, self._resample, interval, f_interval)
+      if self._metric.orientation != 1:
+         scores = -scores
+      return x, scores
+
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       y = np.linspace(xmin, xmax, self._nbins)
       I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
       assert(len(I) > 0)
       y = y[I]
 
-      x = -np.ones(len(y), 'float')
+      if(self._min_obs > 0):
+         sortobs = np.sort(Otrain)
+         if len(sortobs) < self._min_obs*2:
+            print "Too few data points when min_obs is set"
+            sys.exit()
+         I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
+         y = y[I]
+
+      x = np.nan*np.ones(len(y), 'float')
+      lower = -np.ones(len(y), 'float')
+      upper = -np.ones(len(y), 'float')
       N = 100
       scores = np.zeros([N], 'float')
       lastX  = np.min(y)-8
@@ -339,58 +371,79 @@ class MyMethod(Curve):
 
          currY = y[i]
 
-         # Compute the score for each possible perturbation
+         """
+         Compute the score for each possible perturbation
+         """
          for k in range(0,len(dxs)):
             dx = dxs[k]
             interval = verif.interval.Interval(currY, np.inf, False, True)
-            scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain + dx, interval)
-         if(self._metric.orientation != 1):
+            f_interval = verif.interval.Interval(currY - dx, np.inf, False, True)
+            if 0:
+               #if self._resample == 1:
+               temp = 0
+               for t in range(self._resample):
+                  II = np.random.randint(0, len(Otrain), len(Otrain)/2)
+                  temp += self._metric.compute_from_obs_fcst(Otrain[II], Ftrain[II], interval, f_interval)
+               scores[k] = temp / self._resample
+            else:
+               scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+               #else:
+               #   scores[k] = self._metric.compute_from_obs_fcst_resample(Otrain, Ftrain, self._resample, interval, f_interval)
+         if self._metric.orientation != 1:
             scores = -scores
 
          # Smooth the scores
          #scores = np.convolve(scores, [1,1,1,1,1,1,1], 'same')
 
          Ivalid = np.where(np.isnan(scores) == 0)[0]
-         if(len(Ivalid) > 0):
+         if len(Ivalid) > 0:
             # Find the best score
             bestScore = np.max(scores[Ivalid])
             Ibest = np.where(scores[Ivalid] == bestScore)[0]
 
-            if 1:
-               if(len(Ibest) > 1):
-                  II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
-                  if(len(II) > 0):
-                     # Use the nearest threshold above the previous
-                     dx = dxs[Ivalid[Ibest[II[0]]]]
-                  else:
-                     # Use the highest possible threshold
-                     x[i] = currY
-                     dx = dxs[Ivalid[Ibest[-1]]]
+            if len(Ibest) > 1:
+               # Multiple best ones
+               II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
+               if(len(II) > 0):
+                  # Use the nearest threshold above the previous
+                  dx = dxs[Ivalid[Ibest[II[0]]]]
                else:
-                  if(Ibest == len(scores)):
-                     Common.error("Edge problem")
-                  dx = dxs[Ivalid[Ibest]]
-               x[i] = currY - dx
+                  # Use the highest possible threshold
+                  x[i] = currY
+                  dx = dxs[Ivalid[Ibest[-1]]]
+            else:
+               if(Ibest == len(scores)):
+                  Common.error("Edge problem")
+               dx = dxs[Ivalid[Ibest]]
+            x[i] = currY - dx
+
+            if self._midpoint != 1:
+               Ilower = np.where(scores > self._midpoint * bestScore)[0]
+               if len(Ilower) > 0:
+                  lower = currY - dxs[Ilower[0]]
+                  upper = currY - dxs[Ilower[-1]]
+               midpoint = (lower + upper)/2
+               x[i] = midpoint
+               dx = currY - x[i]
+
+            if 1:
                # Don't make a point if the score is too low
-               if(self._metric.orientation == 1 and bestScore < 0.05):
+               if self._metric.orientation == 1 and self._min_score is not None and bestScore < self._min_score:
+                  # print "Removing"
+                  x[i] = np.nan
+               elif np.max(scores) - np.min(scores) < 0:
+                  # print "Not enough spread in scores"
                   x[i] = np.nan
                # If the score at the edge is best, set to extreme most forecast
                elif(scores[-1] > bestScore*0.999):
-                  x[i] = np.min(Ftrain)
+                  # print "Upper edge"
+                  x[i] = np.nanmin(Ftrain)
                elif(scores[0] > bestScore*0.999):
-                  x[i] = np.max(Ftrain)
-               
-            else:
-               if(bestScore == 0):
-                  II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
-                  dx = dxs[Ivalid[Ibest[II[0]]]]
-               else:
-                  Igood = np.where(scores[Ivalid] >= bestScore * 1)[0]
-                  dx = np.mean(dxs[Ivalid[Igood]])
-               x[i] = currY - dx
-
+                  # print "Lower edge"
+                  x[i] = np.nanmax(Ftrain)
          # No valid data, use monotonic
          else:
+            print "No valid data for %f" % y[i]
             if(i > 1):
                x[i] = x[i-1]
             else:
@@ -399,24 +452,30 @@ class MyMethod(Curve):
          lastX = x[i]
          lastDx = dx
 
-      # Remove repeated end points
-      I = np.where(x == np.min(Ftrain))[0]
-      if(len(I) > 1):
-         x[I[0:-1]] = np.nan
-      I = np.where(x == np.max(Ftrain))[0]
-      if(len(I) > 1):
-         x[I[1:]] = np.nan
+      if 1:
+         # Remove repeated end points
+         I = np.where(x == np.min(Ftrain))[0]
+         if(len(I) > 1):
+            x[I[0:-1]] = np.nan
+         I = np.where(x == np.max(Ftrain))[0]
+         if(len(I) > 1):
+            x[I[1:]] = np.nan
+
+      # Make curve monotonic
+      if(self._monotonic):
+         halfway = len(x) / 2
+         for i in range(0, halfway-1):
+            if x[i] > np.nanmin(x[i:-1]):
+               x[i] = np.nan
+            # x[i] = np.min(x[i:halfway])
+         for i in range(halfway+1, len(x)):
+            if x[i] < np.nanmax(x[0:i]):
+               x[i] = np.nan
+            # x[i] = np.max(x[0:(i+1)])
 
       # Remove missing
       I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
       x = x[I]
       y = y[I]
 
-      # Make curve monotonic
-      if(self._monotonic):
-         halfway = len(x) / 2
-         for i in range(0, halfway):
-            x[i] = np.min(x[i:halfway])
-         for i in range(halfway, len(x)):
-            x[i] = np.max(x[0:(i+1)])
-      return x,y
+      return x, y
