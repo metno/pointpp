@@ -102,7 +102,12 @@ class Pers(Method):
    def __init__(self, nbins=None):
       pass
 
-   def _calibrate(self, Otrain, Ftrain, Feval):
+   def calibrate(self, Otrain, Ftrain, Feval):
+      """
+      Don't use _calibrate here, since we don't want missing values to be
+      removed, since then the first observation in the array isn't necessarily
+      the right one
+      """
       return Otrain[0] * np.ones(len(Feval))
 
 
@@ -431,7 +436,7 @@ class MyMethod(Curve):
                   x[i] = np.min(Ftrain)
                elif(scores[0] > bestScore*0.999):
                   x[i] = np.max(Ftrain)
-               
+
             else:
                if(bestScore == 0):
                   II = np.where(dxs[Ivalid[Ibest]] > lastX-currY)[0]
