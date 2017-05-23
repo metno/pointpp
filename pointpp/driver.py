@@ -61,7 +61,7 @@ def run(argv):
          elif args.location_dependent and not args.leadtime_dependent:
             """ Separate calibration for each location """
             fcst2_ar = np.nan * np.zeros(obs_ar.shape)
-            for i in range(LT):
+            for i in range(LOC):
                tmp = method.calibrate(obs_ar[:, :, i].flatten(), fcst_ar[:, :, i].flatten(), fcst_ar[:, :, i].flatten())
                fcst2_ar[:, :, i] = np.reshape(tmp, [D, LT])
          else:
