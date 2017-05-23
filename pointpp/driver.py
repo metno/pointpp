@@ -42,11 +42,23 @@ def run(argv):
    if args.ofile is not None:
       shutil.copyfile(args.file, args.ofile)
       if args.method == "pers" or args.method == "fpers":
-         """ Persistence methods should always be location and date independent """
+         """ Persistence methods should always be location and date dependent """
          fcst2_ar = np.nan * np.zeros(obs_ar.shape)
          for i in range(D):
             for j in range(LOC):
                fcst2_ar [i, :, j] = method.calibrate(obs_ar[i, :, j], fcst_ar[i, :, j], fcst_ar[i, :, j])
+      elif args.method == "clim":
+         """ Climatology methods should always be location and month dependent """
+         fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+         all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
+         months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
+         for i in range(len(months)):
+            month = months[i]
+            I = np.where(all_months == month)[0]
+            for j in range(LOC):
+               tmp = method.calibrate(obs_ar[I, :, j].flatten(), fcst_ar[I, :,
+                  j].flatten(), fcst_ar[I, :, j].flatten())
+               fcst2_ar[I, :, j] = np.reshape(tmp, [len(I), LT])
       else:
          if not args.location_dependent and not args.leadtime_dependent:
             """ One big calibration """
