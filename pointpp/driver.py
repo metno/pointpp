@@ -13,6 +13,7 @@ def run(argv):
    parser = argparse.ArgumentParser(prog="ppverif", description="Hybrid weather generator, combining stochastic and physical modelling")
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('file', help="Input file")
+   parser.add_argument('-t', help="Training file", dest="file_training")
    parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of bins", dest="num_bins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
    parser.add_argument('-m', metavar="METHOD", help="Optimization method", required=True, dest="method")
@@ -22,11 +23,18 @@ def run(argv):
 
    args = parser.parse_args()
 
+   # Evaluation dataset
    input = verif.input.get_input(args.file)
-   obs = input.obs.flatten()
-   fcst = input.fcst.flatten()
-   obs_ar = input.obs
-   fcst_ar = input.fcst
+   eobs = input.obs
+   efcst = input.fcst
+
+   # Training dataset
+   if args.file_training is not None:
+      input_training = verif.input.get_input(args.file_training)
+   else:
+      input_training = input
+   tobs = input_training.obs
+   tfcst = input_training.fcst
 
    method = pointpp.method.get(args.method)
    if method is None:
@@ -35,57 +43,74 @@ def run(argv):
          verif.util.error("Could not understand '%s'" % args.method)
       method = pointpp.method.MyMethod(metric, nbins=args.num_bins, monotonic=True)
 
-   D = obs_ar.shape[0]
-   LT = obs_ar.shape[1]
-   LOC= obs_ar.shape[2]
+   tids = np.array([loc.id for loc in input_training.locations], int)
+   eids = np.array([loc.id for loc in input.locations], int)
+
+   """
+   Not every location in the evaluation set is available in the training set.
+   Find these locations and only calibrate when a location is available (if
+   -loc is selected).
+   """
+   e2t_loc = dict()
+   for id in eids:
+      It = np.where(tids == id)[0]
+      if len(It) == 1:
+         Ie = np.where(eids == id)[0]
+         e2t_loc[Ie[0]] = It[0]
+   D = eobs.shape[0]
+   LT = eobs.shape[1]
+   LOC = eobs.shape[2]
 
    if args.ofile is not None:
       shutil.copyfile(args.file, args.ofile)
       if args.method == "pers" or args.method == "fpers":
          """ Persistence methods should always be location and date dependent """
-         fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+         efcst2 = np.nan * np.zeros(eobs.shape)
          for i in range(D):
-            for j in range(LOC):
-               fcst2_ar [i, :, j] = method.calibrate(obs_ar[i, :, j], fcst_ar[i, :, j], fcst_ar[i, :, j])
+            for j in e2t_loc:
+               jt = e2t_loc[j]
+               efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
       elif args.method == "clim":
          """ Climatology methods should always be location and month dependent """
-         fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+         efcst2 = np.nan * np.zeros(eobs.shape)
          all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
          months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
          for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
-            for j in range(LOC):
-               tmp = method.calibrate(obs_ar[I, :, j].flatten(), fcst_ar[I, :,
-                  j].flatten(), fcst_ar[I, :, j].flatten())
-               fcst2_ar[I, :, j] = np.reshape(tmp, [len(I), LT])
+            for j in e2t_loc:
+               jt = e2t_loc[j]
+               tmp = method.calibrate(tobs[I, :, jt].flatten(), tfcst[I, :, jt].flatten(), efcst[I, :, j].flatten())
+               efcst2[I, :, j] = np.reshape(tmp, [len(I), LT])
       else:
          if not args.location_dependent and not args.leadtime_dependent:
             """ One big calibration """
-            fcst2 = method.calibrate(obs, fcst, fcst)
-            fcst2_ar = np.reshape(fcst2, fcst_ar.shape)
+            efcst2 = method.calibrate(tobs.flatten(), tfcst.flatten(), efcst.flatten())
+            efcst2 = np.reshape(efcst2, efcst.shape)
          elif not args.location_dependent and args.leadtime_dependent:
             """ Separate calibration for each leadtime """
-            fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+            efcst2 = np.nan * np.zeros(eobs.shape)
             for i in range(LT):
-               tmp = method.calibrate(obs_ar[:, i, :].flatten(), fcst_ar[:, i, :].flatten(), fcst_ar[:, i, :].flatten())
-               fcst2_ar[:, i, :] = np.reshape(tmp, [D, LOC])
+               tmp = method.calibrate(tobs[:, i, :].flatten(), tfcst[:, i, :].flatten(), efcst[:, i, :].flatten())
+               efcst2[:, i, :] = np.reshape(tmp, [D, LOC])
          elif args.location_dependent and not args.leadtime_dependent:
             """ Separate calibration for each location """
-            fcst2_ar = np.nan * np.zeros(obs_ar.shape)
-            for i in range(LOC):
-               tmp = method.calibrate(obs_ar[:, :, i].flatten(), fcst_ar[:, :, i].flatten(), fcst_ar[:, :, i].flatten())
-               fcst2_ar[:, :, i] = np.reshape(tmp, [D, LT])
+            efcst2 = np.nan * np.zeros(eobs.shape)
+            for j in e2t_loc:
+               jt = e2t_loc[j]
+               tmp = method.calibrate(tobs[:, :, jt].flatten(), tfcst[:, :, jt].flatten(), efcst[:, :, j].flatten())
+               efcst2[:, :, j] = np.reshape(tmp, [D, LT])
          else:
             """ Separate calibration for each leadtime and location """
-            fcst2_ar = np.nan * np.zeros(obs_ar.shape)
+            efcst2 = np.nan * np.zeros(eobs.shape)
             for i in range(LT):
-               for j in range(LOC):
-                  fcst2_ar[:, i, j] = method.calibrate(obs_ar[:, i, j], fcst_ar[:, i, j], fcst_ar[:, i, j])
+               for j in e2t_loc:
+                  jt = e2t_loc[j]
+                  efcst2[:, i, j] = method.calibrate(tobs[:, i, jt], tfcst[:, i, jt], efcst[:, i, j])
 
       fid = netCDF4.Dataset(args.ofile, 'a')
       print "Writing"
-      fid.variables["fcst"][:] = fcst2_ar
+      fid.variables["fcst"][:] = efcst2
       fid.close()
    else:
       I = np.where((np.isnan(obs) == 0) & (np.isnan(fcst) == 0))[0]
