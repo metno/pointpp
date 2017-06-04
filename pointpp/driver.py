@@ -58,6 +58,7 @@ def run(argv):
             midpoint=args.midpoint, min_obs=args.min_obs,
             min_score=args.min_score, solver=args.solver)
       method._debug = args.debug
+      pointpp.util.DEBUG = args.debug
 
    tids = np.array([loc.id for loc in input_training.locations], int)
    eids = np.array([loc.id for loc in input.locations], int)
@@ -72,7 +73,13 @@ def run(argv):
       It = np.where(tids == id)[0]
       if len(It) == 1:
          Ie = np.where(eids == id)[0]
-         e2t_loc[Ie[0]] = It[0]
+         num_valid_e = np.sum(np.isnan(efcst[:, :, Ie]*eobs[:, :, Ie]) == 0)
+         num_valid_f = np.sum(np.isnan(tfcst[:, :, It]*tobs[:, :, It]) == 0)
+         if num_valid_e > 10 and num_valid_f > 10:
+            e2t_loc[Ie[0]] = It[0]
+         else:
+            pointpp.util.warning("Not enough valid data for location '%d'" % id)
+
    D = eobs.shape[0]
    LT = eobs.shape[1]
    LOC = eobs.shape[2]
@@ -85,7 +92,7 @@ def run(argv):
          efcst2 = np.nan * np.zeros(eobs.shape)
          for i in range(D):
             for j in e2t_loc:
-               pointpp.util.progressbar(i * LOC + j, D * LOC)
+               pointpp.util.progress_bar(i * LOC + j, D * LOC)
                jt = e2t_loc[j]
                efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
       elif args.method == "clim":
@@ -132,9 +139,13 @@ def run(argv):
       fid.close()
    else:
       """ Create calibration curve """
+      obs = tobs[:, -1, :].flatten()
+      fcst = tfcst[:, -1, :].flatten()
       I = np.where((np.isnan(obs) == 0) & (np.isnan(fcst) == 0))[0]
+      obs = obs[I]
+      fcst = fcst[I]
       if args.y is not None:
-         x, y, = method.get_single_curve(obs[I], fcst[I], args.y)
+         x, y, = method.get_single_curve(obs, fcst, args.y)
          mpl.plot(x, y, 'k-o')
          #q = [np.min(x), np.max(x)]
          #mpl.plot(q, q, '-', color="gray", lw=2)
@@ -144,7 +155,7 @@ def run(argv):
       else:
           import time as timing
           s = timing.time()
-          x, y, = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
+          x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
           print timing.time() - s
           if args.curve_file is not None:
              file = open(args.curve_file, 'w')
@@ -153,8 +164,12 @@ def run(argv):
                 file.write("%d %f %f\n" % (1e9 + i,  x[i], y[i]))
              file.close()
           else:
-             # x, y, lower, upper = method.get_curve(obs[I], fcst[I], np.min(fcst[I]), np.max(fcst[I]))
-             #mpl.plot(fcst[I], obs[I], 'r.', alpha=0.3)
+             # x, y, lower, upper = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
+             for i in range(len(x)):
+                print x[i], y[i]
+             # import sys
+             # sys.exit()
+             #mpl.plot(fcst, obs, 'r.', alpha=0.3)
              mpl.plot(x, y, 'k-o')
              # mpl.plot(lower, y, 'k--o')
              # mpl.plot(upper, y, 'k--o')
@@ -162,8 +177,8 @@ def run(argv):
              mpl.plot([-15, 15], [-15, 15], '-', lw=2, color="gray")
              mpl.grid()
              mpl.gca().set_aspect(1)
-             mpl.xlim([-15, 15])
-             mpl.ylim([-15, 15])
+             #mpl.xlim([-15, 15])
+             #mpl.ylim([-15, 15])
              mpl.show()
 
 

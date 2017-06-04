@@ -6,6 +6,7 @@ import verif.util
 import verif.metric
 import verif.interval
 import pointpp.util
+import time as timing
 
 
 def get_all():
@@ -76,13 +77,13 @@ class Raw(Method):
    name = "Raw"
 
    def __init__(self, nbins=2):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       return Feval
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      x = np.linspace(xmin, xmax, self._nbins)
+      x = np.linspace(xmin, xmax, self._num_bins)
       return [x, x]
 
 
@@ -90,7 +91,7 @@ class Clim(Method):
    name = "Climatology"
 
    def __init__(self, nbins=2):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       mean = np.mean(Otrain)
@@ -98,7 +99,7 @@ class Clim(Method):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       mean = np.mean(Otrain)
-      x = np.linspace(xmin, xmax, self._nbins)
+      x = np.linspace(xmin, xmax, self._num_bins)
       return [x,mean + 0*x]
 
 
@@ -131,7 +132,7 @@ class Regression(Method):
    name = "Linear regression"
 
    def __init__(self, nbins=2):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       [a,b] = self._getCoefficients(Otrain, Ftrain)
@@ -153,7 +154,7 @@ class Regression(Method):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       [a,b] = self._get_coefficients(Otrain, Ftrain)
-      x = np.linspace(xmin,xmax,self._nbins)
+      x = np.linspace(xmin,xmax,self._num_bins)
       return [x,a+b*x]
 
 
@@ -161,7 +162,7 @@ class Multiplicative(Method):
    name = "Multiplicative correction"
 
    def __init__(self, nbins=2):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       b = self._get_coefficients(Otrain, Ftrain)
@@ -182,7 +183,7 @@ class Multiplicative(Method):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       b = self._get_coefficients(Otrain, Ftrain)
-      x = np.linspace(xmin,xmax,self._nbins)
+      x = np.linspace(xmin,xmax,self._num_bins)
       return x, b*x
 
 
@@ -190,7 +191,7 @@ class Additive(Method):
    name = "Additive correction"
 
    def __init__(self, nbins=2):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       a = self._get_coefficients(Otrain, Ftrain)
@@ -205,7 +206,7 @@ class Additive(Method):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       a = self._get_coefficients(Otrain, Ftrain)
-      x = np.linspace(xmin,xmax,self._nbins)
+      x = np.linspace(xmin,xmax,self._num_bins)
       return x, a + x
 
 
@@ -277,23 +278,23 @@ class Qq(Curve):
 
    def __init__(self, nbins=None):
       """ Resample curve to have this many points. Use None to use all datapoints """
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       Fsort = np.sort(Ftrain)
       Osort = np.sort(Otrain)
       # Resample curve
-      if(self._nbins != None):
+      if(self._num_bins != None):
          if(0):
-            I = np.zeros(self._nbins, 'int')
-            Ifloat = np.floor(np.linspace(0, len(Fsort)-1, self._nbins))
+            I = np.zeros(self._num_bins, 'int')
+            Ifloat = np.floor(np.linspace(0, len(Fsort)-1, self._num_bins))
             # There must be a better way to turn floats into ints...
             for i in range(0,len(Ifloat)):
                I[i] = int(Ifloat[i])
             Fsort = Fsort[I]
             Osort = Osort[I]
          else:
-            x = np.linspace(min(Fsort), max(Fsort), self._nbins)
+            x = np.linspace(min(Fsort), max(Fsort), self._num_bins)
             y = np.interp(x, Fsort, Osort)
             return [x,y]
 
@@ -317,11 +318,11 @@ class Conditional(Curve):
    name = "Conditional mean"
 
    def __init__(self, nbins=30):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      edges = np.linspace(xmin, xmax, self._nbins+1)
-      #edges = np.unique(np.percentile(Ftrain, np.linspace(0,100,self._nbins+1).tolist()))
+      edges = np.linspace(xmin, xmax, self._num_bins+1)
+      #edges = np.unique(np.percentile(Ftrain, np.linspace(0,100,self._num_bins+1).tolist()))
       x = np.zeros(len(edges)-1, 'float')
       y = np.copy(x)
       for i in range(0, len(x)):
@@ -343,14 +344,14 @@ class InverseConditional(Curve):
    What does this method optimize?
    """
    def __init__(self, nbins=30):
-      self._nbins  = nbins
+      self._num_bins  = nbins
 
    def name(self):
       return "Inverse conditional"
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      edges = np.linspace(xmin, xmax, self._nbins+1)
-      x = np.zeros(self._nbins, 'float')
+      edges = np.linspace(xmin, xmax, self._num_bins+1)
+      x = np.zeros(self._num_bins, 'float')
       y = np.copy(x)
       for i in range(0, len(x)):
          I = np.where((Otrain >= edges[i]) & (Otrain <= edges[i+1]) & (np.isnan(Otrain) == 0) &
@@ -369,13 +370,14 @@ class MyMethod(Curve):
 
    def __init__(self, metric, nbins=30, monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
       self._metric = metric
-      self._nbins  = nbins
       self._monotonic = monotonic
       self._resample = resample
       self._midpoint = midpoint
       self._min_obs = min_obs
       self._min_score = min_score
       self._solver = solver
+      self._num_bins = nbins
+      self._num_dx = 100
 
    def name(self):
       className = self._metric.getClassName()
@@ -399,12 +401,25 @@ class MyMethod(Curve):
       scores = scores[Ivalid]
       return scores, fcst_thresholds
 
+   def get_starting_point(self, Otrain, Ftrain, y):
+      """
+      Find a good estimate for x given a y. Compute the score for the range of
+      observations and pick the x value giving the best score
+      """
+      return self.get_curve_fmin(Otrain, Ftrain, [y])
+      # xx = np.linspace(np.min(Otrain), np.max(Otrain), 50)
+      # scores, xx = self.compute_scores(Otrain, Ftrain, y, xx)
+      # bestScore = np.max(scores)
+      # Ibest = np.where(scores == bestScore)[0]
+      # x = xx[Ibest[0]]
+      return x
+
    def get_single_curve(self, Otrain, Ftrain, threshold, xmin=None, xmax=None):
       if xmin is None:
          xmin = np.nanmin(Ftrain)
       if xmax is None:
          xmax = np.nanmax(Ftrain)
-      x = np.linspace(xmin, xmax, 100)
+      x = np.linspace(xmin, xmax, self._num_dx)
       scores = np.zeros(len(x))
       for k in range(0,len(x)):
          interval = verif.interval.Interval(threshold, np.inf, False, True)
@@ -418,7 +433,7 @@ class MyMethod(Curve):
       return x, scores
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      y = np.linspace(xmin, xmax, self._nbins)
+      y = np.linspace(xmin, xmax, self._num_bins)
       I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
       assert(len(I) > 0)
       y = y[I]
@@ -437,6 +452,8 @@ class MyMethod(Curve):
          x = self.get_curve_new(Otrain, Ftrain, y)
       elif self._solver == "fmin":
          x = self.get_curve_fmin(Otrain, Ftrain, y)
+      elif self._solver == "fminnew":
+         x = self.get_curve_fmin_new(Otrain, Ftrain, y)
       elif self._solver == "sum":
          x = self.get_curve_sum(Otrain, Ftrain, y)
       elif self._solver == "old":
@@ -477,6 +494,26 @@ class MyMethod(Curve):
 
       return x
 
+   def get_curve_fmin_new(self, Otrain, Ftrain, y):
+      """
+      Pros: Fast
+      Cons: Not robust when the peak is flat
+      """
+      x = np.nan*np.ones(len(y), 'float')
+      import scipy.optimize
+      upper_half = range(len(y)/2, len(y))
+      lower_half = range(0, len(y)/2)[::-1]
+
+      for yrange in [upper_half, lower_half]:
+         guess = y[yrange[0]]
+         for i in yrange:
+            interval = verif.interval.Interval(y[i], np.inf, False, True)
+            f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
+            x[i] = scipy.optimize.fmin(f, guess, ftol=0.0001, xtol=0.1, disp=False)
+            guess = x[i]
+
+      return x
+
    def get_curve_sum(self, Otrain, Ftrain, y):
       """
       Pros: Robust
@@ -501,14 +538,9 @@ class MyMethod(Curve):
 
    def get_curve_new(self, Otrain, Ftrain, y):
       x = np.nan*np.ones(len(y), 'float')
-      N = 100
       lastX  = np.nanmean(Otrain)
-      # Do a quick scan to find an approximate area to start
-      xx = np.linspace(np.min(Otrain), np.max(Otrain), N)
-      scores, xx = self.compute_scores(Otrain, Ftrain, y[len(y)/2], xx)
-      bestScore = np.max(scores)
-      Ibest = np.where(scores == bestScore)[0]
-      middleX = xx[Ibest[0]]
+
+      middleX = self.get_starting_point(Otrain, Ftrain, y[len(y)/2])
       """
       Start creating the line from the middle. That is process the upper half
       first, starting from the bottom, then process the lower half from the top.
@@ -523,10 +555,11 @@ class MyMethod(Curve):
 
          for i in yrange:
             """ Skip the rest of the line if we have hit the edges """
+            # print i, len(yrange), y[i], lastX
             if hit_edge:
                continue
 
-            xx = np.linspace(lastX - 3, lastX + 3, N)
+            xx = np.linspace(lastX - 10, lastX + 10, self._num_dx)
             self.debug("%f Searching (%f %f)" % (y[i], xx[0], xx[-1]))
 
             scores, xx = self.compute_scores(Otrain, Ftrain, y[i], xx)
@@ -534,7 +567,7 @@ class MyMethod(Curve):
             if len(scores) > 0:
                # Find the best score
                bestScore = np.max(scores)
-               print bestScore
+               # print bestScore
                Ibest = np.where(scores == bestScore)[0]
                if self._midpoint == 1:
                   if len(Ibest) > 1:
@@ -595,22 +628,22 @@ class MyMethod(Curve):
 
    def get_curve_default(self, Otrain, Ftrain, y):
       x = np.nan*np.ones(len(y), 'float')
-      N = 100
-      scores = np.zeros([N], 'float')
+      scores = np.zeros([self._num_dx], 'float')
       lastX  = np.min(y)-8
       started = False
       for i in range(0, len(y)):
+         # pointpp.util.progress_bar(i, len(y))
          """
          Compute the score for each possible perturbation
          """
          # Determine dxs
          if not started:
             # On the first iteration, test a large range of values
-            xx = y[0] + np.linspace(-30,30,N) # 0.1 increments
+            xx = y[0] + np.linspace(-30, 30, self._num_dx) # 0.1 increments
             started = True
          else:
             # The change in dx from one threshold to the next is unlikely to change a lot
-            xx = np.linspace(lastX - 8, lastX + 8,N)
+            xx = np.linspace(lastX - 8, lastX + 8, self._num_dx)
          self.debug("%f Searching (%f %f)" % (y[i], xx[0], xx[-1]))
 
          """
@@ -697,8 +730,7 @@ class MyMethod(Curve):
 
    def get_curve_old(self, Otrain, Ftrain, y):
       x = np.nan*np.ones(len(y), 'float')
-      N = 100
-      scores = np.zeros([N], 'float')
+      scores = np.zeros([self._num_bins], 'float')
       lastX  = np.min(y)-8
       lastDx = None
       for i in range(0, len(y)):
@@ -708,12 +740,12 @@ class MyMethod(Curve):
          # Determine dxs
          if(lastDx == None):
             # On the first iteration, test a large range of values
-            dxs = np.linspace(-30,30,N) # 0.1 increments
+            dxs = np.linspace(-30,30,self._num_dx) # 0.1 increments
          else:
             # The change in dx from one threshold to the next is unlikely to change a lot
             # This gives slighly different results than the default method,
             # mainly due to the exact numerics of this:
-            dxs = np.linspace(lastDx - 8,lastDx + 8,N)
+            dxs = np.linspace(lastDx - 8,lastDx + 8, self._num_dx)
 
          currY = y[i]
          self.debug("%f Searching (%f %f)" % (y[i], currY-dxs[-1], currY-dxs[0]))
