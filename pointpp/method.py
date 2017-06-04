@@ -459,7 +459,7 @@ class MyMethod(Curve):
       elif self._solver == "old":
          x = self.get_curve_old(Otrain, Ftrain, y)
       else:
-         verif.uilt.error("Invalid solver")
+         verif.util.error("Invalid solver")
       # sys.exit()
 
       if self._monotonic:
