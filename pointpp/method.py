@@ -505,12 +505,12 @@ class MyMethod(Curve):
       lower_half = range(0, len(y)/2)[::-1]
 
       for yrange in [upper_half, lower_half]:
-         guess = y[yrange[0]]
+         lastDiff = 0
          for i in yrange:
             interval = verif.interval.Interval(y[i], np.inf, False, True)
             f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
-            x[i] = scipy.optimize.fmin(f, guess, ftol=0.0001, xtol=0.1, disp=False)
-            guess = x[i]
+            x[i] = scipy.optimize.fmin(f, y[i] - lastDiff, xtol=0.1, disp=False)
+            lastDiff = y[i] - x[i]
 
       return x
 
