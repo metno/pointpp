@@ -15,6 +15,7 @@ def get_all():
    name (string) and the value is the class object
    """
    temp = inspect.getmembers(sys.modules[__name__], inspect.isclass)
+   temp = [x for x in temp if x[0] != "Method"]
    return temp
 
 

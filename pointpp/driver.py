@@ -12,26 +12,26 @@ import pointpp.method
 
 
 def run(argv):
-   parser = argparse.ArgumentParser(prog="ppverif", description="Hybrid weather generator, combining stochastic and physical modelling")
+   methods = [x[0].lower() for x in pointpp.method.get_all()]
+   parser = argparse.ArgumentParser(prog="pointpp", description="Point forecast post-processor")
    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
    parser.add_argument('--debug', help="Show debug information", action="store_true")
-   parser.add_argument('file', help="Input file")
-   parser.add_argument('-t', help="Training file", dest="file_training")
-   parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of bins", dest="num_bins")
+   parser.add_argument('file', help="Verif NetCDF input file")
+   parser.add_argument('-t', metavar="FILE", help="Verif NetCDF file to use for Training ", dest="file_training")
+   parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of points in curve", dest="num_bins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
-   parser.add_argument('-m', metavar="METHOD", help="Optimization method", required=True, dest="method")
-   parser.add_argument('-loc', help="Post-process each station independently?", dest="location_dependent", action="store_true")
-   parser.add_argument('-lt', help="Post-process each leadtime independently?", dest="leadtime_dependent", action="store_true")
-   parser.add_argument('-tt', type=int, help="Training time", dest="ttime")
-   parser.add_argument('-e', help="Evaluation set", dest="efile")
-   parser.add_argument('-mono', default=False, help="Make curve monotonic", action="store_true")
+   parser.add_argument('-m', metavar="METHOD", help="Optimization method.  Either a threshold-based score like ets, or one of: " + ', '.join(methods), required=True, dest="method")
+   parser.add_argument('-loc', help="Post-process each station independently", dest="location_dependent", action="store_true")
+   parser.add_argument('-lt', help="Post-process each leadtime independently", dest="leadtime_dependent", action="store_true")
+   parser.add_argument('-tt', type=int, help="Training time, number of days to train the method", dest="ttime")
+   parser.add_argument('-mono', default=False, help="Run monotonic filter on curve", action="store_true")
    parser.add_argument('-r', default=1, type=int, help="How many times to resample?", dest="resample")
    parser.add_argument('-mp', default=1, type=float, help="Use midpoint of range where score is above this percentage of the best", dest="midpoint")
    parser.add_argument('-mo', default=0, type=int, help="Minimum number of obs required to have a point in the curve", dest="min_obs")
    parser.add_argument('-ms', type=float, help="Minimum score to get a point", dest="min_score")
-   parser.add_argument('-c', help="Write curve to this file", dest="curve_file")
+   parser.add_argument('-c', metavar="FILENAME", help="Write curve to this file", dest="curve_file")
    parser.add_argument('-y', type=float, help="Create curve for this y value")
-   parser.add_argument('-s', default="default", help="One of fmin sum or None", dest="solver")
+   parser.add_argument('-s', default="default", help="Solver to create curve, one of: fmin, sum, None", dest="solver")
 
    if len(sys.argv) == 1:
       parser.print_help()
