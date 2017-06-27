@@ -50,14 +50,14 @@ def run(argv):
    method = pointpp.method.get(args.method)
    if method is None:
       metric = verif.metric.get(args.method)
-      if metric is None:
-         verif.util.error("Could not understand '%s'" % args.method)
-
-      method = pointpp.method.MyMethod(metric, nbins=args.num_bins,
-            monotonic=args.mono, resample=args.resample,
-            midpoint=args.midpoint, min_obs=args.min_obs,
-            min_score=args.min_score, solver=args.solver)
-      method._debug = args.debug
+      if metric is not None:
+         method = pointpp.method.MyMethod(metric, nbins=args.num_bins,
+               monotonic=args.mono, resample=args.resample,
+               midpoint=args.midpoint, min_obs=args.min_obs,
+               min_score=args.min_score, solver=args.solver)
+         method._debug = args.debug
+      else:
+         method = None
       pointpp.util.DEBUG = args.debug
 
    tids = np.array([loc.id for loc in input_training.locations], int)
@@ -83,6 +83,7 @@ def run(argv):
    D = eobs.shape[0]
    LT = eobs.shape[1]
    LOC = eobs.shape[2]
+   eobs2 = None
 
    if args.ofile is not None:
       """ Create output """
@@ -107,6 +108,21 @@ def run(argv):
                jt = e2t_loc[j]
                tmp = method.calibrate(tobs[I, :, jt].flatten(), tfcst[I, :, jt].flatten(), efcst[I, :, j].flatten())
                efcst2[I, :, j] = np.reshape(tmp, [len(I), LT])
+      elif args.method == "anomaly":
+         efcst2 = np.nan * np.zeros(eobs.shape)
+         eobs2 = np.nan * np.zeros(eobs.shape)
+         all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
+         months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
+         for i in range(len(months)):
+            month = months[i]
+            I = np.where(all_months == month)[0]
+            for j in e2t_loc:
+               jt = e2t_loc[j]
+               mean_obs = np.nanmean(tobs[I, :, jt])
+               mean_fcst = np.nanmean(tfcst[I, :, jt])
+               print j, jt, mean_obs, mean_fcst
+               efcst2[I, :, j] = np.reshape(efcst[I, :, j] - mean_obs, [len(I), LT])
+               eobs2[I, :, j] = np.reshape(eobs[I, :, j] - mean_obs, [len(I), LT])
       else:
          if not args.location_dependent and not args.leadtime_dependent:
             """ One big calibration """
@@ -136,6 +152,8 @@ def run(argv):
       fid = netCDF4.Dataset(args.ofile, 'a')
       print "Writing"
       fid.variables["fcst"][:] = efcst2
+      if eobs2 is not None:
+         fid.variables["obs"][:] = eobs2
       fid.close()
    else:
       """ Create calibration curve """
