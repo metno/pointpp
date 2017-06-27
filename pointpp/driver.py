@@ -1,13 +1,14 @@
 import argparse
 import numpy as np
 import shutil
+import sys
+import matplotlib.pyplot as mpl
+import netCDF4
 import verif.input
 import verif.metric
 import pointpp.util
 import pointpp.version
 import pointpp.method
-import matplotlib.pyplot as mpl
-import netCDF4
 
 
 def run(argv):
@@ -32,6 +33,9 @@ def run(argv):
    parser.add_argument('-y', type=float, help="Create curve for this y value")
    parser.add_argument('-s', default="default", help="One of fmin sum or None", dest="solver")
 
+   if len(sys.argv) == 1:
+      parser.print_help()
+      sys.exit(1)
    args = parser.parse_args()
 
    # Evaluation dataset
