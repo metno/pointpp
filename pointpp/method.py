@@ -231,8 +231,8 @@ class Curve(Method):
       xmax = np.max(x)
       ymax = np.max(y)
 
-      I0 = np.where(Feval < fmin)[0] # Below training set
-      I1 = np.where(Feval > fmax)[0] # Above training set
+      I0 = np.where(Feval < xmin)[0] # Below training set
+      I1 = np.where(Feval > xmax)[0] # Above training set
       if(self._outsideType == "fixed"):
          cal[I0] = ymin
          cal[I1] = ymax
@@ -245,7 +245,7 @@ class Curve(Method):
       else:
          Common.error("_outsideType of '" + self._outsideType + "' not recognized")
 
-      I = np.where((Feval <= fmax) & (Feval >= fmin))[0] # Inside training set
+      I = np.where((Feval <= xmax) & (Feval >= xmin))[0] # Inside training set
       cal[I] = np.interp(Feval[I], x, y)
       return cal
 
