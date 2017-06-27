@@ -378,6 +378,7 @@ class MyMethod(Curve):
       self._solver = solver
       self._num_bins = nbins
       self._num_dx = 100
+      self._min_num_data = 100
 
    def name(self):
       className = self._metric.getClassName()
@@ -446,6 +447,8 @@ class MyMethod(Curve):
          y = y[I]
       # y = np.array([-15, -14, -13, -10, -5, 0, 5])
 
+      import time
+      s = time.time()
       if self._solver == "default":
          x = self.get_curve_default(Otrain, Ftrain, y)
       elif self._solver == "new":
@@ -477,6 +480,27 @@ class MyMethod(Curve):
       I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
       x = x[I]
       y = y[I]
+
+      # Remove points where there are too few obs/fcst
+      if self._min_num_data > 0:
+         obs_sort = np.sort(Otrain)
+         fcst_sort = np.sort(Ftrain)
+         assert(len(obs_sort) > 2*self._min_num_data)
+         I = np.where((x >= fcst_sort[self._min_num_data]) & (x <= fcst_sort[-self._min_num_data]) &\
+                      (y >= obs_sort[self._min_num_data]) & (y <= obs_sort[-self._min_num_data]))[0]
+         print "Removing %d of %d" % (len(x) - len(I), len(x))
+         x = x[I]
+         y = y[I]
+
+      """
+      for i in range(len(x)):
+         print "%2.3f %2.3f" % (x[i], y[i])
+      print "%2.3f %2.3f" % (np.std(x), np.std(y))
+      print "%2.3f s" % (time.time() - s)
+      import sys
+      sys.exit()
+      """
+
       return x, y
 
    def get_curve_fmin(self, Otrain, Ftrain, y):
