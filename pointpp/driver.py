@@ -181,9 +181,9 @@ def run(argv):
           print timing.time() - s
           if args.curve_file is not None:
              file = open(args.curve_file, 'w')
-             file.write("unixtime obs fcst\n")
+             file.write("obs fcst\n")
              for i in range(len(x)):
-                file.write("%d %f %f\n" % (1e9 + i,  x[i], y[i]))
+                file.write("%f %f\n" % (x[i], y[i]))
              file.close()
           else:
              # x, y, lower, upper = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
