@@ -379,7 +379,7 @@ class MyMethod(Curve):
       self._solver = solver
       self._num_bins = nbins
       self._num_dx = 100
-      self._min_num_data = 100
+      self._min_num_data = self._min_obs
 
    def name(self):
       className = self._metric.getClassName()
