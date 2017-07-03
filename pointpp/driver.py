@@ -160,32 +160,31 @@ def run(argv):
       if eobs2 is not None:
          fid.variables["obs"][:] = eobs2
       fid.close()
-   else:
+
+   if args.curve_file is not None:
       """ Create calibration curve """
       obs = tobs[:, -1, :].flatten()
       fcst = tfcst[:, -1, :].flatten()
       I = np.where((np.isnan(obs) == 0) & (np.isnan(fcst) == 0))[0]
       obs = obs[I]
       fcst = fcst[I]
+
       if args.y is not None:
          x, y, = method.get_single_curve(obs, fcst, args.y)
-         mpl.plot(x, y, 'k-o')
-         #q = [np.min(x), np.max(x)]
-         #mpl.plot(q, q, '-', color="gray", lw=2)
-         #mpl.gca().set_aspect(1)
-         mpl.grid()
-         mpl.show()
+         if args.curve_file is not None:
+            write(x, y, args.curve_file, "x score")
+         else:
+            mpl.plot(x, y, 'k-o')
+            #q = [np.min(x), np.max(x)]
+            #mpl.plot(q, q, '-', color="gray", lw=2)
+            #mpl.gca().set_aspect(1)
+            mpl.grid()
+            mpl.show()
       else:
-          import time as timing
-          s = timing.time()
           x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
-          print timing.time() - s
           if args.curve_file is not None:
-             file = open(args.curve_file, 'w')
-             file.write("obs fcst\n")
-             for i in range(len(x)):
-                file.write("%f %f\n" % (x[i], y[i]))
-             file.close()
+             x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
+             write(x, y, args.curve_file, "obs fcst")
           else:
              # x, y, lower, upper = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
              for i in range(len(x)):
@@ -203,6 +202,19 @@ def run(argv):
              #mpl.xlim([-15, 15])
              #mpl.ylim([-15, 15])
              mpl.show()
+
+
+def write(x, y, filename, header=None):
+   """
+   Write data to file
+   """
+   if filename is not None:
+      file = open(filename, 'w')
+      if header is not None:
+         file.write("%s\n" % header)
+      for i in range(len(x)):
+         file.write("%f %f\n" % (x[i], y[i]))
+      file.close()
 
 
 if __name__ == '__main__':
