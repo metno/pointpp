@@ -101,17 +101,18 @@ def run(argv):
                jt = e2t_loc[j]
                efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
       elif args.method == "clim":
-         """ Climatology methods should always be location and month dependent """
+         """ Climatology methods should always be location, leadtime, and month dependent """
          efcst2 = np.nan * np.zeros(eobs.shape)
          all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
          months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
          for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
-            for j in e2t_loc:
-               jt = e2t_loc[j]
-               tmp = method.calibrate(tobs[I, :, jt].flatten(), tfcst[I, :, jt].flatten(), efcst[I, :, j].flatten())
-               efcst2[I, :, j] = np.reshape(tmp, [len(I), LT])
+            for i in range(LT):
+               for j in e2t_loc:
+                  jt = e2t_loc[j]
+                  tmp = method.calibrate(tobs[I, i, jt].flatten(), tfcst[I, i, jt].flatten(), efcst[I, i, j].flatten())
+                  efcst2[I, i, j] = tmp
       elif args.method == "anomaly":
          efcst2 = np.nan * np.zeros(eobs.shape)
          eobs2 = np.nan * np.zeros(eobs.shape)
