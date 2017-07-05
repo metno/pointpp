@@ -53,7 +53,10 @@ def run(argv):
 
    method = pointpp.method.get(args.method)
    if method is None:
-      metric = verif.metric.get(args.method)
+      if args.method == "bias":
+         metric = pointpp.metric.Bias()
+      else:
+         metric = verif.metric.get(args.method)
       if metric is not None:
          method = pointpp.method.MyMethod(metric, nbins=args.num_bins,
                monotonic=args.mono, resample=args.resample,
@@ -218,4 +221,4 @@ def write(x, y, filename, header=None):
 
 
 if __name__ == '__main__':
-   main()
+   run(sys.argv)
