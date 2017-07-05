@@ -418,12 +418,14 @@ class MyMethod(Curve):
       # x = xx[Ibest[0]]
       return x
 
-   def get_single_curve(self, Otrain, Ftrain, threshold, xmin=None, xmax=None):
-      if xmin is None:
+   def get_single_curve(self, Otrain, Ftrain, threshold, bins=[100]):
+      if len(bins) == 1:
          xmin = np.nanmin(Ftrain)
-      if xmax is None:
          xmax = np.nanmax(Ftrain)
-      x = np.linspace(xmin, xmax, self._num_dx)
+         x = np.linspace(xmin, xmax, bins[0])
+      else:
+         x = np.array(bins)
+
       scores = np.zeros(len(x))
       for k in range(0,len(x)):
          interval = verif.interval.Interval(threshold, np.inf, False, True)
@@ -901,29 +903,11 @@ class Radpro(object):
       o = obs[:, :, :]
       f = fcst[:, :, :]
       bias = o - f
-      """
-      p = np.zeros([(D-1)*L, LT, 2])
-      a = np.zeros([(D-1)*L, LT])
-      # p[:, :, 0] = f[1:, :]
-      for l in range(L):
-         I = range(l*(D-1), (l+1)*(D-1))
-         p[I, :, 0] = np.reshape(np.repeat(bias[1:, 0, l], LT) , [D-1, LT])
-         p[I, :, 1] = bias[0:-1, :, l]
-         a[I, :] = bias[1:, :, l]
-      model = sklearn.linear_model.LinearRegression()
-
-      for lt in range(LT):
-         I = np.where(np.isnan(np.min(p[:, lt, :], axis=1) + a[:, lt])==0)[0]
-         model.fit(p[I, lt, :], a[I, lt])
-         w1[lt] = model.coef_[0]
-         w2[lt] = model.coef_[1]
-      """
 
       model = sklearn.linear_model.LinearRegression()
 
       for lt in range(LT):
          day = int(np.floor(lt / 24.0)) + 1
-         print lt, day
          p = np.zeros([(D-day)*L, 2])
          a = np.zeros([(D-day)*L])
          for l in range(L):

@@ -20,6 +20,7 @@ def run(argv):
    parser.add_argument('file', help="Verif NetCDF input file")
    parser.add_argument('-t', metavar="FILE", help="Verif NetCDF file to use for Training ", dest="file_training")
    parser.add_argument('-b', type=verif.util.parse_numbers, default=[100], metavar="BINS", help="Number of points in curve. If vector, then its the bin edges", dest="bins")
+   parser.add_argument('-yb', type=verif.util.parse_numbers, default=[100], metavar="BINS", help="Number of points when using -y optimization. If vector, then its the bin edges", dest="ybins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
    parser.add_argument('-m', metavar="METHOD", help="Optimization method.  Either a threshold-based score like ets, or one of: " + ', '.join(methods), required=True, dest="method")
    parser.add_argument('-loc', help="Post-process each station independently", dest="location_dependent", action="store_true")
@@ -174,7 +175,7 @@ def run(argv):
       fcst = fcst[I]
 
       if args.y is not None:
-         x, y, = method.get_single_curve(obs, fcst, args.y)
+         x, y, = method.get_single_curve(obs, fcst, args.y, args.ybins)
          if args.curve_file is not None:
             write(x, y, args.curve_file, "x score")
          else:
