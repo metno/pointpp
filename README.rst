@@ -1,5 +1,5 @@
-Point post-processing software
-==============================
+Software for post-processing weather forecasts at points
+========================================================
 
 Pointpp is a command-line tool to post-process weather forecasts for point locations. It uses input files prepared for Verif (https://github.com/WFRT/verif).
 
