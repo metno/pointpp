@@ -1,4 +1,5 @@
 import argparse
+import sys
 import numpy as np
 import shutil
 import netCDF4
@@ -16,6 +17,9 @@ def run(argv):
    parser.add_argument('-sf', metavar="SIGMA", type=float, help="Forecast standard deviation", dest="sigma_fcst")
    parser.add_argument('-r', metavar="LOWER,UPPER", type=verif.util.parse_numbers, help="Range", required=True, dest="range")
 
+   if len(sys.argv) == 1:
+      parser.print_help()
+      sys.exit(1)
    args = parser.parse_args()
 
    N = args.num
