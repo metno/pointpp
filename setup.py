@@ -68,7 +68,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['numpy>=1.7', 'matplotlib<2', 'scipy', 'netCDF4', 'verif>=1.0.0'],
+    install_requires=['numpy>=1.7', 'matplotlib<2', 'scipy', 'netCDF4', 'verif>=1.0.0', 'sklearn'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -102,6 +102,7 @@ setup(
         'console_scripts': [
             'pointpp=pointpp:main',
             'pointgen=pointpp:pointgen',
+            'pointradpro=pointpp:pointradpro',
         ],
     },
 )

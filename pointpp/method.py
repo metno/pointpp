@@ -7,6 +7,8 @@ import verif.metric
 import verif.interval
 import pointpp.util
 import time as timing
+import sklearn.linear_model
+import copy
 
 
 def get_all():
@@ -15,7 +17,7 @@ def get_all():
    name (string) and the value is the class object
    """
    temp = inspect.getmembers(sys.modules[__name__], inspect.isclass)
-   temp = [x for x in temp if x[0] != "Method"]
+   temp = [x for x in temp if x[0] not in ["Method", "Radpro"]]
    return temp
 
 
@@ -866,3 +868,85 @@ class MyMethod(Curve):
             x[I[1:]] = np.nan
 
       return x
+
+
+class Radpro(object):
+   def __init__(self):
+      self.turn_off_with_precip = False
+      self.weight_recent = None
+      self.weight_yesterday = None
+
+   def train(self, obs, fcst):
+      """
+      Train the internal parameters on a training dataset
+
+      Arguments:
+         obs (np.array):
+
+      Returns:
+         np.array: Weights of recent bias
+         np.array: Weights of yesterday's bias
+      """
+      D = obs.shape[0]
+      LT = obs.shape[1]
+      L = obs.shape[2]
+      w1 = np.zeros(LT)
+      w2 = np.zeros(LT)
+      l = 0
+      o = obs[:, :, :]
+      f = fcst[:, :, :]
+      bias = o - f
+      """
+      p = np.zeros([(D-1)*L, LT, 2])
+      a = np.zeros([(D-1)*L, LT])
+      # p[:, :, 0] = f[1:, :]
+      for l in range(L):
+         I = range(l*(D-1), (l+1)*(D-1))
+         p[I, :, 0] = np.reshape(np.repeat(bias[1:, 0, l], LT) , [D-1, LT])
+         p[I, :, 1] = bias[0:-1, :, l]
+         a[I, :] = bias[1:, :, l]
+      model = sklearn.linear_model.LinearRegression()
+
+      for lt in range(LT):
+         I = np.where(np.isnan(np.min(p[:, lt, :], axis=1) + a[:, lt])==0)[0]
+         model.fit(p[I, lt, :], a[I, lt])
+         w1[lt] = model.coef_[0]
+         w2[lt] = model.coef_[1]
+      """
+
+      model = sklearn.linear_model.LinearRegression()
+
+      for lt in range(LT):
+         day = int(np.floor(lt / 24.0)) + 1
+         print lt, day
+         p = np.zeros([(D-day)*L, 2])
+         a = np.zeros([(D-day)*L])
+         for l in range(L):
+            I = range(l*(D-day), (l+1)*(D-day))
+            p[I, 0] = bias[day:, 0, l]
+            p[I, 1] = bias[0:-day, lt, l]
+            a[I] = bias[day:, lt, l]
+         I = np.where(np.isnan(np.min(p, axis=1) + a)==0)[0]
+         model.fit(p[I, :], a[I])
+         w1[lt] = model.coef_[0]
+         w2[lt] = model.coef_[1]
+
+      self.weight_recent = w1
+      self.weight_yesterday = w2
+      return w1, w2
+
+   def apply(self, obs, fcst):
+      """ Apply the parameters to an evaluation dataset """
+      D = obs.shape[0]
+      LT = obs.shape[1]
+      L = obs.shape[2]
+      efcst = copy.deepcopy(fcst)
+      for lt in range(LT):
+         day = int(np.floor(lt / 24.0)) + 1
+         for d in range(day, D):
+            recent = obs[d, 0, :] - fcst[d, 0, :]
+            yesterday = obs[d - day, lt, :] - fcst[d - day, lt, :]
+            efcst[d, lt, :] = efcst[d, lt, :] + self.weight_recent[lt] * recent
+            + self.weight_yesterday[lt] * yesterday
+
+      return efcst

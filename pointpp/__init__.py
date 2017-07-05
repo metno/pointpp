@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import pointpp.driver
 import pointpp.gen
+import pointpp.radpro
 
 
 def main():
@@ -9,6 +10,9 @@ def main():
 
 def pointgen():
    pointpp.gen.run(sys.argv)
+
+def pointradpro():
+   pointpp.radpro.run()
 
 if __name__ == '__main__':
    main()
