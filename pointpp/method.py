@@ -371,7 +371,7 @@ class InverseConditional(Curve):
 class MyMethod(Curve):
    """ Optimizes forecasts relative to a metric """
 
-   def __init__(self, metric, nbins=30, monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
+   def __init__(self, metric, bins=[30], monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
       self._metric = metric
       self._monotonic = monotonic
       self._resample = resample
@@ -379,7 +379,7 @@ class MyMethod(Curve):
       self._min_obs = min_obs
       self._min_score = min_score
       self._solver = solver
-      self._num_bins = nbins
+      self._bins = bins
       self._num_dx = 100
       self._min_num_data = self._min_obs
 
@@ -437,7 +437,11 @@ class MyMethod(Curve):
       return x, scores
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      y = np.linspace(xmin, xmax, self._num_bins)
+      if len(self._bins) == 1:
+         y = np.linspace(xmin, xmax, self._bins[0])
+      else:
+         y = np.copy(self._bins)
+
       I = np.where((y >= np.min(Otrain)) & (y <= np.max(Otrain)))[0]
       assert(len(I) > 0)
       y = y[I]
@@ -757,7 +761,8 @@ class MyMethod(Curve):
 
    def get_curve_old(self, Otrain, Ftrain, y):
       x = np.nan*np.ones(len(y), 'float')
-      scores = np.zeros([self._num_bins], 'float')
+      num_bins = len(self._bins) if len(self._bins) > 1 else self._bins[0]
+      scores = np.zeros([num_bins], 'float')
       lastX  = np.min(y)-8
       lastDx = None
       for i in range(0, len(y)):

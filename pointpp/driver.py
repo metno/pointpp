@@ -9,6 +9,7 @@ import verif.metric
 import pointpp.util
 import pointpp.version
 import pointpp.method
+import pointpp.metric
 
 
 def run(argv):
@@ -18,7 +19,7 @@ def run(argv):
    parser.add_argument('--debug', help="Show debug information", action="store_true")
    parser.add_argument('file', help="Verif NetCDF input file")
    parser.add_argument('-t', metavar="FILE", help="Verif NetCDF file to use for Training ", dest="file_training")
-   parser.add_argument('-b', type=int, default=100, metavar="NUM", help="Number of points in curve", dest="num_bins")
+   parser.add_argument('-b', type=verif.util.parse_numbers, default=[100], metavar="BINS", help="Number of points in curve. If vector, then its the bin edges", dest="bins")
    parser.add_argument('-o', metavar="FILE", help="Output filename", dest="ofile")
    parser.add_argument('-m', metavar="METHOD", help="Optimization method.  Either a threshold-based score like ets, or one of: " + ', '.join(methods), required=True, dest="method")
    parser.add_argument('-loc', help="Post-process each station independently", dest="location_dependent", action="store_true")
@@ -58,7 +59,7 @@ def run(argv):
       else:
          metric = verif.metric.get(args.method)
       if metric is not None:
-         method = pointpp.method.MyMethod(metric, nbins=args.num_bins,
+         method = pointpp.method.MyMethod(metric, bins=args.bins,
                monotonic=args.mono, resample=args.resample,
                midpoint=args.midpoint, min_obs=args.min_obs,
                min_score=args.min_score, solver=args.solver)
