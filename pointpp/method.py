@@ -522,7 +522,8 @@ class MyMethod(Curve):
 
       for i in range(0, len(y)):
          interval = verif.interval.Interval(y[i], np.inf, False, True)
-         f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
+         sign = - self._metric.orientation
+         f = lambda x: sign * self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
          x[i] = scipy.optimize.fmin(f, y[i], xtol=0.1, disp=False)
 
       return x

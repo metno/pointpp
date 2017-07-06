@@ -5,7 +5,7 @@ class Bias(verif.metric.Contingency):
    name = "Bias"
    description = "Bias"
    perfect_score = 0
-   orientation = 1
+   orientation = -1
 
    def compute_from_abcd(self, a, b, c, d):
       N = a + b + c + d
