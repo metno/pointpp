@@ -16,11 +16,14 @@ def run(argv):
    parser.add_argument('-so', metavar="SIGMA", type=float, help="Observation standard deviation", dest="sigma_obs")
    parser.add_argument('-sf', metavar="SIGMA", type=float, help="Forecast standard deviation", dest="sigma_fcst")
    parser.add_argument('-r', metavar="LOWER,UPPER", type=verif.util.parse_numbers, help="Range", required=True, dest="range")
+   parser.add_argument('-seed', metavar="NUM", type=int, help="Random seed", dest="seed")
 
    if len(sys.argv) == 1:
       parser.print_help()
       sys.exit(1)
    args = parser.parse_args()
+   if args.seed is not None:
+      np.random.seed(args.seed)
 
    N = args.num
    if args.sigma is None:
