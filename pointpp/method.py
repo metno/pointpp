@@ -21,13 +21,13 @@ def get_all():
    return temp
 
 
-def get(name):
+def get(name, bins, min_obs):
    """ Returns an instance of an object with the given class name """
    methods = get_all()
    m = None
    for method in methods:
       if name == method[0].lower():  # and method[1].is_valid():
-         m = method[1]()
+         m = method[1](bins, min_obs)
 
    return m
 
@@ -79,22 +79,22 @@ class Method(object):
 class Raw(Method):
    name = "Raw"
 
-   def __init__(self, nbins=2):
-      self._num_bins  = nbins
+   def __init__(self, bins=None, min_obs=None):
+      pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       return Feval
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      x = np.linspace(xmin, xmax, self._num_bins)
+      x = np.linspace(xmin, xmax, 2)
       return [x, x]
 
 
 class Clim(Method):
    name = "Climatology"
 
-   def __init__(self, nbins=2):
-      self._num_bins  = nbins
+   def __init__(self, bins=None, min_obs=None):
+      pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       mean = np.mean(Otrain)
@@ -109,7 +109,7 @@ class Clim(Method):
 class Pers(Method):
    name = "Persistence"
 
-   def __init__(self, nbins=None):
+   def __init__(self, bins=None, min_obs=None):
       pass
 
    def calibrate(self, Otrain, Ftrain, Feval):
@@ -124,7 +124,7 @@ class Pers(Method):
 class Fpers(Method):
    name = "Forecast persistence"
 
-   def __init__(self, nbins=None):
+   def __init__(self, bins=None, min_obs=None):
       pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
@@ -134,8 +134,8 @@ class Fpers(Method):
 class Regression(Method):
    name = "Linear regression"
 
-   def __init__(self, nbins=2):
-      self._num_bins  = nbins
+   def __init__(self, bins=None, min_obs=None):
+      pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       [a,b] = self._getCoefficients(Otrain, Ftrain)
@@ -164,8 +164,8 @@ class Regression(Method):
 class Multiplicative(Method):
    name = "Multiplicative correction"
 
-   def __init__(self, nbins=2):
-      self._num_bins  = nbins
+   def __init__(self, bins=None, min_obs=None):
+      pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       b = self._get_coefficients(Otrain, Ftrain)
@@ -193,8 +193,8 @@ class Multiplicative(Method):
 class Additive(Method):
    name = "Additive correction"
 
-   def __init__(self, nbins=2):
-      self._num_bins  = nbins
+   def __init__(self, bins=None, min_obs=None):
+      pass
 
    def _calibrate(self, Otrain, Ftrain, Feval):
       a = self._get_coefficients(Otrain, Ftrain)
@@ -279,9 +279,13 @@ class Qq(Curve):
    """
    name = "Quantile mapping"
 
-   def __init__(self, nbins=None):
+   def __init__(self, bins=None, min_obs=None):
       """ Resample curve to have this many points. Use None to use all datapoints """
-      self._num_bins  = nbins
+      if bins is None:
+         self._num_bins = 10
+
+      else:
+         self._num_bins = bins[0]
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       Fsort = np.sort(Ftrain)
@@ -320,23 +324,29 @@ class Conditional(Curve):
    """
    name = "Conditional mean"
 
-   def __init__(self, nbins=30):
-      self._num_bins  = nbins
+   def __init__(self, bins=[30], min_obs=0):
+      self.bins = bins
+      self.min_obs = min_obs
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      edges = np.linspace(xmin, xmax, self._num_bins+1)
-      #edges = np.unique(np.percentile(Ftrain, np.linspace(0,100,self._num_bins+1).tolist()))
+      if len(self.bins) == 1:
+         edges = np.linspace(xmin, xmax, self.bins+1)
+      else:
+         edges = self.bins
       x = np.zeros(len(edges)-1, 'float')
       y = np.copy(x)
       for i in range(0, len(x)):
          I = np.where((Ftrain >= edges[i]) & (Ftrain <= edges[i+1]) & (np.isnan(Ftrain) == 0) &
                (np.isnan(Otrain) == 0))[0]
-         if(len(I) > 0):
+         if(len(I) > self.min_obs):
             x[i] = np.mean(Ftrain[I])
             y[i] = np.mean(Otrain[I])
          else:
-            x[i] = (edges[i] + edges[i+1])/2
-            y[i] = x[i]
+            x[i] = np.nan# (edges[i] + edges[i+1])/2
+            y[i] = np.nan# x[i]
+      I = np.where(np.isnan(x) == 0)[0]
+      x = x[I]
+      y = y[I]
       return [x,y]
 
 
@@ -346,15 +356,18 @@ class InverseConditional(Curve):
    F -> E^-1[F|O]
    What does this method optimize?
    """
-   def __init__(self, nbins=30):
-      self._num_bins  = nbins
+   def __init__(self, bins=[30], min_obs=None):
+      self.bins = bins
 
    def name(self):
       return "Inverse conditional"
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      edges = np.linspace(xmin, xmax, self._num_bins+1)
-      x = np.zeros(self._num_bins, 'float')
+      if len(self.bins) == 1:
+         edges = np.linspace(xmin, xmax, self.bins+1)
+      else:
+         edges = self.bins
+      x = np.zeros(len(edges)-1, 'float')
       y = np.copy(x)
       for i in range(0, len(x)):
          I = np.where((Otrain >= edges[i]) & (Otrain <= edges[i+1]) & (np.isnan(Otrain) == 0) &

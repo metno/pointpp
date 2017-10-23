@@ -53,7 +53,7 @@ def run(argv):
    tobs = input_training.obs
    tfcst = input_training.fcst
 
-   method = pointpp.method.get(args.method)
+   method = pointpp.method.get(args.method, args.bins, args.min_obs)
    if method is None:
       if args.method == "bias":
          metric = pointpp.metric.Bias()
