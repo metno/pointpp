@@ -96,12 +96,12 @@ class Clim(Method):
    def __init__(self, bins=None, min_obs=None):
       pass
 
-   def _calibrate(self, Otrain, Ftrain, Feval):
-      mean = np.mean(Otrain)
+   def calibrate(self, Otrain, Ftrain, Feval):
+      mean = np.nanmean(Otrain)
       return mean * np.ones(len(Feval), 'float')
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
-      mean = np.mean(Otrain)
+      mean = np.nanmean(Otrain)
       x = np.linspace(xmin, xmax, self._num_bins)
       return [x,mean + 0*x]
 
