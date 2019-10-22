@@ -293,22 +293,20 @@ class Qq(Curve):
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       Fsort = np.sort(Ftrain)
       Osort = np.sort(Otrain)
+      if xmin is not None and xmax is not None:
+          I = np.where((Fsort >= xmin) & (Fsort <= xmax))[0]
+          Fsort = Fsort[I]
+          Osort = Osort[I]
+
       # Resample curve
       if(self._num_bins != None):
-         if(0):
-            I = np.zeros(self._num_bins, 'int')
-            Ifloat = np.floor(np.linspace(0, len(Fsort)-1, self._num_bins))
-            # There must be a better way to turn floats into ints...
-            for i in range(0,len(Ifloat)):
-               I[i] = int(Ifloat[i])
-            Fsort = Fsort[I]
-            Osort = Osort[I]
-         else:
-            x = np.linspace(min(Fsort), max(Fsort), self._num_bins)
-            y = np.interp(x, Fsort, Osort)
-            return [x,y]
+        x = np.linspace(min(Fsort), max(Fsort), self._num_bins)
+        y = np.interp(x, Fsort, Osort)
+      else:
+        x = Fsort
+        y = Osort
 
-      return [Fsort, Osort]
+      return x, y
 
    def get_probabilistic_curve(self, Otrain, Ftrain, xmin, xmax):
       Osort = np.sort(Otrain)
