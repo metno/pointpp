@@ -33,6 +33,7 @@ def run(argv):
    parser.add_argument('-mo', default=0, type=int, help="Minimum number of obs required to have a point in the curve", dest="min_obs")
    parser.add_argument('-ms', type=float, help="Minimum score to get a point", dest="min_score")
    parser.add_argument('-c', metavar="FILENAME", help="Write curve to this file", dest="curve_file")
+   parser.add_argument('-cr', type=verif.util.parse_numbers, metavar="min,max", help="Min,max range for curve", dest="curve_minmax")
    parser.add_argument('-y', type=float, help="Create curve for this y value")
    parser.add_argument('-s', default="default", help="Solver to create curve, one of: fmin, sum, None", dest="solver")
    parser.add_argument('-d', type=parse_dates, help="Dates to do the training on", dest="dates")
@@ -195,7 +196,12 @@ def run(argv):
             mpl.grid()
             mpl.show()
       else:
-          x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
+          cmin = np.min(fcst)
+          cmax = np.max(fcst)
+          if args.curve_minmax is not None:
+              cmin = args.curve_minmax[0]
+              cmax = args.curve_minmax[1]
+          x, y, = method.get_curve(obs, fcst, cmin, cmax)
           if args.curve_file is not None:
              write(y, x, args.curve_file, "obs fcst")
           else:
