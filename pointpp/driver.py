@@ -6,6 +6,7 @@ import matplotlib.pyplot as mpl
 import netCDF4
 import verif.input
 import verif.metric
+import verif.util
 import pointpp.util
 import pointpp.version
 import pointpp.method
@@ -34,6 +35,7 @@ def run(argv):
    parser.add_argument('-c', metavar="FILENAME", help="Write curve to this file", dest="curve_file")
    parser.add_argument('-y', type=float, help="Create curve for this y value")
    parser.add_argument('-s', default="default", help="Solver to create curve, one of: fmin, sum, None", dest="solver")
+   parser.add_argument('-d', type=parse_dates, help="Dates to do the training on", dest="dates")
 
    if len(sys.argv) == 1:
       parser.print_help()
@@ -52,6 +54,13 @@ def run(argv):
       input_training = input
    tobs = input_training.obs
    tfcst = input_training.fcst
+
+   if args.dates is not None:
+       dates = [verif.util.unixtime_to_date(d) for d in input_training.times]
+       Idates = [i for i in range(tobs.shape[0]) if dates[i] in args.dates]
+       print "Reducing dates: %d to %d" % (tobs.shape[0], len(Idates))
+       tobs = tobs[Idates, :, :]
+       tfcst = tfcst[Idates, :, :]
 
    method = pointpp.method.get(args.method, args.bins, args.min_obs)
    if method is None:
@@ -168,8 +177,8 @@ def run(argv):
 
    if args.curve_file is not None:
       """ Create calibration curve """
-      obs = tobs[:, -1, :].flatten()
-      fcst = tfcst[:, -1, :].flatten()
+      obs = tobs.flatten()
+      fcst = tfcst.flatten()
       I = np.where((np.isnan(obs) == 0) & (np.isnan(fcst) == 0))[0]
       obs = obs[I]
       fcst = fcst[I]
@@ -207,6 +216,10 @@ def run(argv):
              #mpl.xlim([-15, 15])
              #mpl.ylim([-15, 15])
              mpl.show()
+
+
+def parse_dates(string):
+    return verif.util.parse_numbers(string, True)
 
 
 def write(x, y, filename, header=None):
