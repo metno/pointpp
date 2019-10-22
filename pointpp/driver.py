@@ -197,8 +197,7 @@ def run(argv):
       else:
           x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
           if args.curve_file is not None:
-             x, y, = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
-             write(x, y, args.curve_file, "obs fcst")
+             write(y, x, args.curve_file, "obs fcst")
           else:
              # x, y, lower, upper = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
              for i in range(len(x)):

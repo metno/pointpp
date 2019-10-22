@@ -228,7 +228,10 @@ class Curve(Method):
       fmax = np.max(Ftrain)
       cal = np.copy(Feval)
 
+      print np.min(Feval), np.max(Feval)
+      print len(Otrain)
       [x,y] = self.get_curve(Otrain, Ftrain, np.min(Feval), np.max(Feval))
+      print x, y
       xmin = np.min(x)
       ymin = np.min(y)
       xmax = np.max(x)
@@ -329,8 +332,9 @@ class Conditional(Curve):
       self.min_obs = min_obs
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
+      print xmin, xmax, self.bins
       if len(self.bins) == 1:
-         edges = np.linspace(xmin, xmax, self.bins+1)
+         edges = np.linspace(xmin, xmax, self.bins[0] + 1)
       else:
          edges = self.bins
       x = np.zeros(len(edges)-1, 'float')
@@ -364,7 +368,7 @@ class InverseConditional(Curve):
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
       if len(self.bins) == 1:
-         edges = np.linspace(xmin, xmax, self.bins+1)
+         edges = np.linspace(xmin, xmax, self.bins[0] + 1)
       else:
          edges = self.bins
       x = np.zeros(len(edges)-1, 'float')
@@ -447,8 +451,8 @@ class MyMethod(Curve):
             scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
          else:
             scores[k] = self._metric.compute_from_obs_fcst_resample(Otrain, Ftrain, self._resample, interval, f_interval)
-      if self._metric.orientation != 1:
-         scores = -scores
+      # if self._metric.orientation != 1:
+      #   scores = -scores
       return x, scores
 
    def get_curve(self, Otrain, Ftrain, xmin, xmax):
@@ -461,7 +465,7 @@ class MyMethod(Curve):
       assert(len(I) > 0)
       y = y[I]
 
-      if(self._min_obs > 0):
+      if(0 and self._min_obs > 0):
          sortobs = np.sort(Otrain)
          if len(sortobs) < self._min_obs*2:
             verif.util.error("Too few data points when min_obs is set")
@@ -555,6 +559,7 @@ class MyMethod(Curve):
          lastDiff = 0
          for i in yrange:
             interval = verif.interval.Interval(y[i], np.inf, False, True)
+            self.debug("%f Searching (%f %f)" % (y[i], -np.inf, np.inf))
             f = lambda x: -self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, verif.interval.Interval(x, np.inf, False, True))
             x[i] = scipy.optimize.fmin(f, y[i] - lastDiff, xtol=0.1, disp=False)
             lastDiff = y[i] - x[i]
@@ -588,6 +593,7 @@ class MyMethod(Curve):
       lastX  = np.nanmean(Otrain)
 
       middleX = self.get_starting_point(Otrain, Ftrain, y[len(y)/2])
+      # middleX = self.get_starting_point(Otrain, Ftrain, y[0])
       """
       Start creating the line from the middle. That is process the upper half
       first, starting from the bottom, then process the lower half from the top.
@@ -650,14 +656,16 @@ class MyMethod(Curve):
                   self.debug("Not enough spread in scores")
                   x[i] = np.nan
                # If the score at the edge is best, set to extreme most forecast
-               elif(scores[0] > bestScore*0.999):
+               elif(scores[0] > bestScore*0.9999):
                   self.debug("Lower edge")
                   hit_edge = True
                   x[i] = np.nanmin(Ftrain)
-               elif(scores[-1] > bestScore*0.999):
+               elif(scores[-1] > bestScore*0.9999):
                   self.debug("Upper edge")
                   hit_edge = True
                   x[i] = np.nanmax(Ftrain)
+                  x[i] = xx[-1]
+                  print x[i]
             # No valid data, use monotonic
             else:
                self.debug("No valid data for %f" % y[i])
