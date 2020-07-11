@@ -11,15 +11,15 @@ def progress_bar(fraction, width, text=""):
 
 def error(message):
    """ Write error message to console and abort """
-   print "\033[1;31mError: " + message + "\033[0m"
+   print("\033[1;31mError: " + message + "\033[0m")
    sys.exit(1)
 
 
 def debug(message):
    if DEBUG:
-      print message
+      print(message)
 
 
 def warning(message):
    """ Write a warning message to console """
-   print "\033[1;33mWarning: " + message + "\033[0m"
+   print("\033[1;33mWarning: " + message + "\033[0m")

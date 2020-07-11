@@ -45,6 +45,9 @@ def run(argv):
    eobs = input.obs
    efcst = input.fcst
 
+   if eobs is None:
+      pointpp.util.error("No observations available")
+
    # Training dataset
    if args.file_training is not None:
       input_training = verif.input.get_input(args.file_training)
@@ -102,14 +105,14 @@ def run(argv):
          efcst2 = np.nan * np.zeros(eobs.shape)
          for i in range(D):
             for j in e2t_loc:
-               pointpp.util.progress_bar(i * LOC + j, D * LOC)
+               #pointpp.util.progress_bar(i * LOC + j, D * LOC)
                jt = e2t_loc[j]
                efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
       elif args.method == "clim":
          """ Climatology methods should always be location, leadtime, and month dependent """
          efcst2 = np.nan * np.zeros(eobs.shape)
-         all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
-         months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
+         all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
+         months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
          for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
@@ -121,8 +124,8 @@ def run(argv):
       elif args.method == "anomaly":
          efcst2 = np.nan * np.zeros(eobs.shape)
          eobs2 = np.nan * np.zeros(eobs.shape)
-         all_months = np.array([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times])
-         months = np.unique(np.sort([verif.util.unixtime_to_date(t) / 100 % 100 for t in input.times]))
+         all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
+         months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
          for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
@@ -130,7 +133,7 @@ def run(argv):
                jt = e2t_loc[j]
                mean_obs = np.nanmean(tobs[I, :, jt])
                mean_fcst = np.nanmean(tfcst[I, :, jt])
-               print j, jt, mean_obs, mean_fcst
+               print(j, jt, mean_obs, mean_fcst)
                efcst2[I, :, j] = np.reshape(efcst[I, :, j] - mean_obs, [len(I), LT])
                eobs2[I, :, j] = np.reshape(eobs[I, :, j] - mean_obs, [len(I), LT])
       else:
@@ -160,7 +163,7 @@ def run(argv):
                   efcst2[:, i, j] = method.calibrate(tobs[:, i, jt], tfcst[:, i, jt], efcst[:, i, j])
 
       fid = netCDF4.Dataset(args.ofile, 'a')
-      print "Writing"
+      print("Writing")
       fid.variables["fcst"][:] = efcst2
       if eobs2 is not None:
          fid.variables["obs"][:] = eobs2
@@ -193,7 +196,7 @@ def run(argv):
           else:
              # x, y, lower, upper = method.get_curve(obs, fcst, np.min(fcst), np.max(fcst))
              for i in range(len(x)):
-                print x[i], y[i]
+                print(x[i], y[i])
              # import sys
              # sys.exit()
              #mpl.plot(fcst, obs, 'r.', alpha=0.3)
