@@ -73,7 +73,7 @@ class Method(object):
 
     def debug(self, msg):
         if self._debug:
-            print msg
+            print(msg)
 
 
 class Raw(Method):
@@ -228,10 +228,7 @@ class Curve(Method):
         fmax = np.max(Ftrain)
         cal = np.copy(Feval)
 
-        print np.min(Feval), np.max(Feval)
-        print len(Otrain)
         [x,y] = self.get_curve(Otrain, Ftrain, np.min(Feval), np.max(Feval))
-        print x, y
         xmin = np.min(x)
         ymin = np.min(y)
         xmax = np.max(x)
@@ -308,6 +305,7 @@ class Qq(Curve):
 
         return x, y
 
+
     def get_probabilistic_curve(self, Otrain, Ftrain, xmin, xmax):
         Osort = np.sort(Otrain)
         pit   = np.zeros(len(Osort))
@@ -330,7 +328,6 @@ class Conditional(Curve):
         self.min_obs = min_obs
 
     def get_curve(self, Otrain, Ftrain, xmin, xmax):
-        print xmin, xmax, self.bins
         if len(self.bins) == 1:
             edges = np.linspace(xmin, xmax, self.bins[0] + 1)
         else:
@@ -490,7 +487,7 @@ class MyMethod(Curve):
         # sys.exit()
 
         if self._monotonic:
-            halfway = len(x) / 2
+            halfway = len(x) // 2
             for i in range(0, halfway-1):
                 if x[i] > np.nanmin(x[i:-1]):
                     x[i] = np.nan
@@ -512,15 +509,15 @@ class MyMethod(Curve):
             assert(len(obs_sort) > 2*self._min_num_data)
             I = np.where((x >= fcst_sort[self._min_num_data]) & (x <= fcst_sort[-self._min_num_data]) &\
                          (y >= obs_sort[self._min_num_data]) & (y <= obs_sort[-self._min_num_data]))[0]
-            print "Removing %d of %d" % (len(x) - len(I), len(x))
+            print("Removing %d of %d" % (len(x) - len(I), len(x)))
             x = x[I]
             y = y[I]
 
         """
         for i in range(len(x)):
-           print "%2.3f %2.3f" % (x[i], y[i])
-        print "%2.3f %2.3f" % (np.std(x), np.std(y))
-        print "%2.3f s" % (time.time() - s)
+           print("%2.3f %2.3f" % (x[i], y[i]))
+        print("%2.3f %2.3f" % (np.std(x), np.std(y)))
+        print("%2.3f s" % (time.time() - s))
         import sys
         sys.exit()
         """
@@ -606,7 +603,6 @@ class MyMethod(Curve):
 
             for i in yrange:
                 """ Skip the rest of the line if we have hit the edges """
-                # print i, len(yrange), y[i], lastX
                 if hit_edge:
                     continue
 
@@ -618,7 +614,6 @@ class MyMethod(Curve):
                 if len(scores) > 0:
                     # Find the best score
                     bestScore = np.max(scores)
-                    # print bestScore
                     Ibest = np.where(scores == bestScore)[0]
                     if self._midpoint == 1:
                         if len(Ibest) > 1:
@@ -643,7 +638,6 @@ class MyMethod(Curve):
                             lower = xx[Ilower[0]]
                             upper = xx[Ilower[-1]]
                             midpoint = (lower + upper)/2
-                            # print y[i], Ilower, lower, upper, midpoint, scores[0], bestScore, scores[-1]
                             x[i] = midpoint
 
                     # Don't make a point if the score is too low
@@ -663,7 +657,6 @@ class MyMethod(Curve):
                         hit_edge = True
                         x[i] = np.nanmax(Ftrain)
                         x[i] = xx[-1]
-                        print x[i]
                 # No valid data, use monotonic
                 else:
                     self.debug("No valid data for %f" % y[i])
@@ -716,7 +709,6 @@ class MyMethod(Curve):
                 # Find the best score
                 bestScore = np.max(scores)
                 Ibest = np.where(scores == bestScore)[0]
-                # print scores
                 if self._midpoint == 1:
                     if len(Ibest) > 1:
                         # Multiple best ones
@@ -740,7 +732,6 @@ class MyMethod(Curve):
                         lower = xx[Ilower[0]]
                         upper = xx[Ilower[-1]]
                         midpoint = (lower + upper)/2
-                        # print y[i], Ilower, lower, upper, midpoint, scores[0], bestScore, scores[-1]
                         x[i] = midpoint
 
                 if 1:
