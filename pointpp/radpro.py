@@ -82,7 +82,7 @@ def run():
         efcst2 = method.apply(eobs, efcst)
 
         fid = netCDF4.Dataset(args.ofile, 'a')
-        print "Writing"
+        print("Writing")
         fid.variables["fcst"][:] = efcst2
         if eobs2 is not None:
             fid.variables["obs"][:] = eobs2

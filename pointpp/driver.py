@@ -62,7 +62,7 @@ def run(argv):
     if args.dates is not None:
         dates = [verif.util.unixtime_to_date(d) for d in input_training.times]
         Idates = [i for i in range(tobs.shape[0]) if dates[i] in args.dates]
-        print "Reducing dates: %d to %d" % (tobs.shape[0], len(Idates))
+        print("Reducing dates: %d to %d" % (tobs.shape[0], len(Idates)))
         tobs = tobs[Idates, :, :]
         tfcst = tfcst[Idates, :, :]
 
