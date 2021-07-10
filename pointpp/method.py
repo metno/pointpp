@@ -392,7 +392,7 @@ class MyMethod(Curve):
         self._solver = solver
         try:
             self._bins = [int(bins)]
-        except exception as e:
+        except Exception as e:
             self._bins = bins
         self._num_dx = 100
         self._min_num_data = self._min_obs
