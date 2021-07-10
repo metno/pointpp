@@ -358,8 +358,7 @@ class InverseConditional(Curve):
     def __init__(self, bins=[30], min_obs=None):
         self.bins = bins
 
-    def name(self):
-        return "Inverse conditional"
+    name = "Inverse conditional"
 
     def get_curve(self, Otrain, Ftrain, xmin, xmax):
         if len(self.bins) == 1:
@@ -391,13 +390,17 @@ class MyMethod(Curve):
         self._min_obs = min_obs
         self._min_score = min_score
         self._solver = solver
-        self._bins = bins
+        try:
+            self._bins = [int(bins)]
+        except exception as e:
+            self._bins = bins
         self._num_dx = 100
         self._min_num_data = self._min_obs
 
+    @property
     def name(self):
-        className = self._metric.getClassName()
-        if className == "BiasFreq":
+        className = self._metric.get_class_name()
+        if className in ["BiasFreq", "Bias"]:
             className = "Bias"
         else:
             className = className.upper()
