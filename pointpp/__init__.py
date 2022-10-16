@@ -1,18 +1,17 @@
 import sys
 import numpy as np
-import pointpp.driver
 import pointpp.gen
-import pointpp.radpro
 
+
+__version__ = "0.1.0"
 
 def main():
-    pointpp.driver.run(sys.argv)
+    import pointpp.__main__
+
+    pointpp.__main__.main()
 
 def pointgen():
     pointpp.gen.run(sys.argv)
 
-def pointradpro():
-    pointpp.radpro.run()
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

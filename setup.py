@@ -1,40 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
-# To use a consistent encoding
-from codecs import open
-from os import path
+import os
+import io
+import setuptools
 
-here = path.abspath(path.dirname(__file__))
-exec(open('pointpp/version.py').read())
 
-# Get the long description from the relevant file
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
-    long_description = f.read()
+def read(fname):
+    file_path = os.path.join(os.path.dirname(__file__), fname)
+    return io.open(file_path, encoding="utf-8").read()
 
-setup(
-    name='pointpp',
 
-    # Versions should comply with PEP440.  For a discussion on single-sourcing
-    # the version across setup.py and the project code, see
-    # https://packaging.python.org/en/latest/single_source_version.html
-    version=__version__,
+package_name = "pointpp"
 
+version = None
+init_py = os.path.join(package_name.replace("-", "_"), "__init__.py")
+for line in read(init_py).split("\n"):
+    if line.startswith("__version__"):
+        version = line.split("=")[-1].strip()[1:-1]
+assert version
+
+setuptools.setup(
+    name=package_name,
+    version=version,
     description='Program to post-process verif files',
-    long_description=long_description,
-
-    # The project's main homepage.
     url='https://github.com/tnipen/pointpp',
-
-    # Author details
     author='Thomas Nipen',
     author_email='thomas.nipen@met.no',
-
-    # Choose your license
+    packages=setuptools.find_packages(exclude=["test"]),
     license='BSD-3',
-
-    # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
+    install_requires=['numpy>=1.7', 'matplotlib', 'scipy', 'netCDF4', 'verif>=1.0.0', 'sklearn', 'gridpp>=0.6.0'],
     classifiers=[
         # How mature is this project? Common values are
         #   3 - Alpha
@@ -62,40 +57,11 @@ setup(
     # What does your project relate to?
     keywords='meteorology post-processing weather prediction',
 
-    # You can just specify the packages manually here if your project is
-    # simple. Or you can use find_packages().
-    packages=find_packages(exclude=['contrib', 'docs', '*tests*']),
-
-    # List run-time dependencies here.  These will be installed by pip when
-    # your project is installed. For an analysis of "install_requires" vs pip's
-    # requirements files see:
-    # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['numpy>=1.7', 'matplotlib', 'scipy', 'netCDF4', 'verif>=1.0.0', 'sklearn'],
-
-    # List additional groups of dependencies here (e.g. development
-    # dependencies). You can install these using the following syntax,
-    # for example:
-    # $ pip install -e .[dev,test]
     extras_require={
-    #    'dev': ['check-manifest'],
-        'test': ['coverage', 'pep8'],
-    #    'test': ['pytest'],
+        "test": ["coverage", "pep8"],
     },
 
     test_suite="pointpp.tests",
-
-    # If there are data files included in your packages that need to be
-    # installed, specify them here.  If using Python 2.6 or less, then these
-    # have to be included in MANIFEST.in as well.
-    #package_data={
-    #    'sample': ['package_data.dat'],
-    #},
-
-    # Although 'package_data' is the preferred approach, in some case you may
-    # need to place data files outside of your packages. See:
-    # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
-    # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    #data_files=[('my_data', ['data/data_file'])],
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
@@ -104,7 +70,6 @@ setup(
         'console_scripts': [
             'pointpp=pointpp:main',
             'pointgen=pointpp:pointgen',
-            'pointradpro=pointpp:pointradpro',
         ],
     },
 )

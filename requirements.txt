@@ -6,3 +6,4 @@ pep8
 netCDF4
 verif>=1.0.0
 sklearn
+gridpp>=0.6.0

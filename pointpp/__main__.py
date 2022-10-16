@@ -13,9 +13,9 @@ import pointpp.method
 import pointpp.metric
 
 
-def run(argv):
+def main(argv=sys.argv):
     methods = [x[0].lower() for x in pointpp.method.get_all()]
-    parser = argparse.ArgumentParser(prog="pointpp", description="Point forecast post-processor")
+    parser = argparse.ArgumentParser(prog="pointpp", description="Program to post-process forecast in Verif files")
     parser.add_argument('--version', action="version", version=pointpp.version.__version__)
     parser.add_argument('--debug', help="Show debug information", action="store_true")
     parser.add_argument('file', help="Verif NetCDF input file")
@@ -244,4 +244,4 @@ def write(x, y, filename, header=None):
 
 
 if __name__ == '__main__':
-    run(sys.argv)
+    main()
