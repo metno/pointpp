@@ -9,6 +9,7 @@ import pointpp.util
 import time as timing
 import sklearn.linear_model
 import copy
+import gridpp
 
 
 def get_all():
@@ -30,6 +31,20 @@ def get(name, bins, min_obs):
             m = method[1](bins, min_obs)
 
     return m
+
+
+def get_gridpp_metric(metric):
+    if metric.get_class_name() == "Ets":
+        name = gridpp.Ets
+    elif metric.get_class_name() == "Kss":
+        name = gridpp.Kss
+    elif metric.get_class_name() == "Pc":
+        name = gridpp.Pc
+    elif metric.get_class_name() == "Bias":
+        name = gridpp.Bias
+    else:
+        raise NotImplementedError
+    return name
 
 
 class Method(object):
@@ -157,7 +172,8 @@ class Regression(Method):
 
     def get_curve(self, Otrain, Ftrain, xmin, xmax):
         [a,b] = self._get_coefficients(Otrain, Ftrain)
-        x = np.linspace(xmin,xmax,self._num_bins)
+        # x = np.linspace(xmin,xmax,self._num_bins)
+        x = np.array([xmin, xmax])
         return [x,a+b*x]
 
 
@@ -285,6 +301,8 @@ class Qq(Curve):
             self._num_bins = 10
 
         else:
+            if isinstance(bins, int):
+                bins = [bins]
             self._num_bins = bins[0]
 
     def get_curve(self, Otrain, Ftrain, xmin, xmax):
@@ -324,6 +342,8 @@ class Conditional(Curve):
     name = "Conditional mean"
 
     def __init__(self, bins=[30], min_obs=0):
+        if isinstance(bins, int):
+            bins = [bins]
         self.bins = bins
         self.min_obs = min_obs
 
@@ -340,6 +360,7 @@ class Conditional(Curve):
             if(len(I) > self.min_obs):
                 x[i] = np.mean(Ftrain[I])
                 y[i] = np.mean(Otrain[I])
+                print(x[i], y[i], np.nanmax(Otrain[I]))
             else:
                 x[i] = np.nan# (edges[i] + edges[i+1])/2
                 y[i] = np.nan# x[i]
@@ -356,6 +377,8 @@ class InverseConditional(Curve):
     What does this method optimize?
     """
     def __init__(self, bins=[30], min_obs=None):
+        if isinstance(bins, int):
+            bins = [bins]
         self.bins = bins
 
     name = "Inverse conditional"
@@ -383,6 +406,8 @@ class MyMethod(Curve):
     """ Optimizes forecasts relative to a metric """
 
     def __init__(self, metric, bins=[30], monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
+        if isinstance(bins, int):
+            bins = [bins]
         self._metric = metric
         self._monotonic = monotonic
         self._resample = resample
@@ -442,18 +467,32 @@ class MyMethod(Curve):
             x = np.array(bins)
 
         scores = np.zeros(len(x))
+        metric = get_gridpp_metric(self._metric)
         for k in range(0,len(x)):
             interval = verif.interval.Interval(threshold, np.inf, False, True)
             f_interval = verif.interval.Interval(x[k], np.inf, False, True)
             if self._resample == 1:
-                scores[k] = self._metric.compute_from_obs_fcst(Otrain, Ftrain, interval, f_interval)
+                scores[k] = gridpp.calc_score(Otrain, Ftrain, threshold, x[k], metric)
             else:
-                scores[k] = self._metric.compute_from_obs_fcst_resample(Otrain, Ftrain, self._resample, interval, f_interval)
+                raise NotImplementedError
+                # scores[k] = self._metric.compute_from_obs_fcst_resample(Otrain, Ftrain, self._resample, interval, f_interval)
         # if self._metric.orientation != 1:
         #   scores = -scores
         return x, scores
 
     def get_curve(self, Otrain, Ftrain, xmin, xmax):
+        if len(self._bins) > 1:
+            thresholds = self._bins
+        else:
+            # thresholds = gridpp.calc_even_quantiles(np.sort(Otrain), int(self._bins[0]))
+            thresholds = np.linspace(xmin, xmax, self._bins[0])
+        metric = get_gridpp_metric(self._metric)
+        c0, c1 = gridpp.metric_optimizer_curve(Otrain, Ftrain, thresholds, metric)
+        if self._monotonic:
+            c0, c1 = gridpp.monotonize_curve(c0, c1)
+        return c0, c1
+
+    def get_curve_orig(self, Otrain, Ftrain, xmin, xmax):
         if len(self._bins) == 1:
             y = np.linspace(xmin, xmax, self._bins[0])
         else:

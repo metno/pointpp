@@ -12,7 +12,7 @@ class Fmin(Solver):
         if(self._min_obs > 0):
             sortobs = np.sort(Otrain)
             if len(sortobs) < self._min_obs*2:
-                print "Too few data points when min_obs is set"
+                print("Too few data points when min_obs is set")
                 sys.exit()
             I = np.where((y >= sortobs[self._min_obs]) & (y <= sortobs[-self._min_obs]))[0]
             y = y[I]
