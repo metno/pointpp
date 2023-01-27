@@ -29,7 +29,7 @@ setuptools.setup(
     author_email='thomas.nipen@met.no',
     packages=setuptools.find_packages(exclude=["test"]),
     license='BSD-3',
-    install_requires=['numpy>=1.7', 'matplotlib', 'scipy', 'netCDF4', 'verif>=1.0.0', 'sklearn', 'gridpp>=0.6.0'],
+    install_requires=['numpy>=1.7', 'matplotlib', 'scipy', 'netCDF4', 'verif>=1.0.0', 'scikit-learn', 'gridpp>=0.6.0'],
     classifiers=[
         # How mature is this project? Common values are
         #   3 - Alpha
