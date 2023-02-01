@@ -102,81 +102,24 @@ def main(argv=sys.argv):
             else:
                 pointpp.util.warning("Not enough valid data for location '%d'" % id)
 
-    D = eobs.shape[0]
-    LT = eobs.shape[1]
-    LOC = eobs.shape[2]
-    eobs2 = None
 
     if args.ofile is not None:
         """ Create output """
         shutil.copyfile(args.file, args.ofile)
-        if args.method == "pers" or args.method == "fpers":
-            """ Persistence methods should always be location and date dependent """
-            efcst2 = np.nan * np.zeros(eobs.shape)
-            for i in range(D):
-                for j in e2t_loc:
-                    #pointpp.util.progress_bar(i * LOC + j, D * LOC)
-                    jt = e2t_loc[j]
-                    efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
-        elif args.method == "clim":
-            """ Climatology methods should always be location, leadtime, and month dependent """
-            efcst2 = np.nan * np.zeros(eobs.shape)
-            all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
-            months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
-            for i in range(len(months)):
-                month = months[i]
-                I = np.where(all_months == month)[0]
-                for i in range(LT):
-                    for j in e2t_loc:
-                        jt = e2t_loc[j]
-                        tmp = method.calibrate(tobs[I, i, jt].flatten(), tfcst[I, i, jt].flatten(), efcst[I, i, j].flatten())
-                        efcst2[I, i, j] = tmp
-        elif args.method == "anomaly":
-            efcst2 = np.nan * np.zeros(eobs.shape)
-            eobs2 = np.nan * np.zeros(eobs.shape)
-            all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
-            months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
-            for i in range(len(months)):
-                month = months[i]
-                I = np.where(all_months == month)[0]
-                for j in e2t_loc:
-                    jt = e2t_loc[j]
-                    mean_obs = np.nanmean(tobs[I, :, jt])
-                    mean_fcst = np.nanmean(tfcst[I, :, jt])
-                    print(j, jt, mean_obs, mean_fcst)
-                    efcst2[I, :, j] = np.reshape(efcst[I, :, j] - mean_obs, [len(I), LT])
-                    eobs2[I, :, j] = np.reshape(eobs[I, :, j] - mean_obs, [len(I), LT])
-        else:
-            if not args.location_dependent and not args.leadtime_dependent:
-                """ One big calibration """
-                efcst2 = method.calibrate(tobs.flatten(), tfcst.flatten(), efcst.flatten())
-                efcst2 = np.reshape(efcst2, efcst.shape)
-            elif not args.location_dependent and args.leadtime_dependent:
-                """ Separate calibration for each leadtime """
-                efcst2 = np.nan * np.zeros(eobs.shape)
-                for i in range(LT):
-                    tmp = method.calibrate(tobs[:, i, :].flatten(), tfcst[:, i, :].flatten(), efcst[:, i, :].flatten())
-                    efcst2[:, i, :] = np.reshape(tmp, [D, LOC])
-            elif args.location_dependent and not args.leadtime_dependent:
-                """ Separate calibration for each location """
-                efcst2 = np.nan * np.zeros(eobs.shape)
-                for j in e2t_loc:
-                    jt = e2t_loc[j]
-                    tmp = method.calibrate(tobs[:, :, jt].flatten(), tfcst[:, :, jt].flatten(), efcst[:, :, j].flatten())
-                    efcst2[:, :, j] = np.reshape(tmp, [D, LT])
-            else:
-                """ Separate calibration for each leadtime and location """
-                efcst2 = np.nan * np.zeros(eobs.shape)
-                for i in range(LT):
-                    for j in e2t_loc:
-                        jt = e2t_loc[j]
-                        efcst2[:, i, j] = method.calibrate(tobs[:, i, jt], tfcst[:, i, jt], efcst[:, i, j])
 
         fid = netCDF4.Dataset(args.ofile, 'a')
-        print("Writing")
+        efcst2, eobs2 = calibrate(tobs, tfcst, eobs, efcst, args.method, method, args.leadtime_dependent, args.location_dependent)
         fid.variables["fcst"][:] = efcst2
+
+        if "quantile" in fid.variables:
+            for i in range(len(fid.variables["quantile"])):
+                curr = input.quantile_scores[..., i]
+                efcst2, _ = calibrate(tobs, tfcst, eobs, curr, args.method, method, args.leadtime_dependent, args.location_dependent)
+                fid.variables["x"][:, :, :, i] = efcst2
+
         if eobs2 is not None:
             fid.variables["obs"][:] = eobs2
+        print("Writing")
         fid.close()
 
     if args.curve_file is not None:
@@ -241,6 +184,76 @@ def write(x, y, filename, header=None):
         for i in range(len(x)):
             file.write("%f %f\n" % (x[i], y[i]))
         file.close()
+
+
+def calibrate(tobs, tfcst, eobs, efcst, method_name, method, leadtime_dependent, location_dependent):
+    D = eobs.shape[0]
+    LT = eobs.shape[1]
+    LOC = eobs.shape[2]
+
+    eobs2 = None
+    if method_name == "pers" or method_name == "fpers":
+        """ Persistence methods should always be location and date dependent """
+        efcst2 = np.nan * np.zeros(eobs.shape)
+        for i in range(D):
+            for j in e2t_loc:
+                #pointpp.util.progress_bar(i * LOC + j, D * LOC)
+                jt = e2t_loc[j]
+                efcst2 [i, :, j] = method.calibrate(tobs[i, :, jt], tfcst[i, :, jt], efcst[i, :, j])
+    elif method_name == "clim":
+        """ Climatology methods should always be location, leadtime, and month dependent """
+        efcst2 = np.nan * np.zeros(eobs.shape)
+        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
+        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
+        for i in range(len(months)):
+            month = months[i]
+            I = np.where(all_months == month)[0]
+            for i in range(LT):
+                for j in e2t_loc:
+                    jt = e2t_loc[j]
+                    tmp = method.calibrate(tobs[I, i, jt].flatten(), tfcst[I, i, jt].flatten(), efcst[I, i, j].flatten())
+                    efcst2[I, i, j] = tmp
+    elif method_name == "anomaly":
+        efcst2 = np.nan * np.zeros(eobs.shape)
+        eobs2 = np.nan * np.zeros(eobs.shape)
+        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
+        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
+        for i in range(len(months)):
+            month = months[i]
+            I = np.where(all_months == month)[0]
+            for j in e2t_loc:
+                jt = e2t_loc[j]
+                mean_obs = np.nanmean(tobs[I, :, jt])
+                mean_fcst = np.nanmean(tfcst[I, :, jt])
+                print(j, jt, mean_obs, mean_fcst)
+                efcst2[I, :, j] = np.reshape(efcst[I, :, j] - mean_obs, [len(I), LT])
+                eobs2[I, :, j] = np.reshape(eobs[I, :, j] - mean_obs, [len(I), LT])
+    else:
+        if not location_dependent and not leadtime_dependent:
+            """ One big calibration """
+            efcst2 = method.calibrate(tobs.flatten(), tfcst.flatten(), efcst.flatten())
+            efcst2 = np.reshape(efcst2, efcst.shape)
+        elif not location_dependent and leadtime_dependent:
+            """ Separate calibration for each leadtime """
+            efcst2 = np.nan * np.zeros(eobs.shape)
+            for i in range(LT):
+                tmp = method.calibrate(tobs[:, i, :].flatten(), tfcst[:, i, :].flatten(), efcst[:, i, :].flatten())
+                efcst2[:, i, :] = np.reshape(tmp, [D, LOC])
+        elif location_dependent and not leadtime_dependent:
+            """ Separate calibration for each location """
+            efcst2 = np.nan * np.zeros(eobs.shape)
+            for j in e2t_loc:
+                jt = e2t_loc[j]
+                tmp = method.calibrate(tobs[:, :, jt].flatten(), tfcst[:, :, jt].flatten(), efcst[:, :, j].flatten())
+                efcst2[:, :, j] = np.reshape(tmp, [D, LT])
+        else:
+            """ Separate calibration for each leadtime and location """
+            efcst2 = np.nan * np.zeros(eobs.shape)
+            for i in range(LT):
+                for j in e2t_loc:
+                    jt = e2t_loc[j]
+                    efcst2[:, i, j] = method.calibrate(tobs[:, i, jt], tfcst[:, i, jt], efcst[:, i, j])
+    return efcst2, eobs2
 
 
 if __name__ == '__main__':
