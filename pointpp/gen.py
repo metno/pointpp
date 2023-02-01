@@ -4,12 +4,12 @@ import numpy as np
 import shutil
 import netCDF4
 import verif.util
-import pointpp.version
+import pointpp
 
 
 def run(argv):
     parser = argparse.ArgumentParser(prog="pointgen", description="Creates random observations and forecasts")
-    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
+    parser.add_argument('--version', action="version", version=pointpp.__version__)
     parser.add_argument('file', help="Output file", nargs=1)
     parser.add_argument('-n', metavar="NUM", type=int, help="Number of points", required=True, dest="num")
     parser.add_argument('-s', metavar="SIGMA", type=float, help="Standard deviation", dest="sigma")

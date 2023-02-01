@@ -6,8 +6,10 @@ import matplotlib.pyplot as mpl
 import netCDF4
 import verif.input
 import verif.metric
+
+
+import pointpp
 import pointpp.util
-import pointpp.version
 import pointpp.method
 import pointpp.metric
 
@@ -15,7 +17,7 @@ import pointpp.metric
 def run():
     methods = [x[0].lower() for x in pointpp.method.get_all()]
     parser = argparse.ArgumentParser(prog="radpro_pointpp", description="Post-processing using radpro algorithm")
-    parser.add_argument('--version', action="version", version=pointpp.version.__version__)
+    parser.add_argument('--version', action="version", version=pointpp.__version__)
     parser.add_argument('--debug', help="Show debug information", action="store_true")
     parser.add_argument('file', help="Verif NetCDF input file")
     parser.add_argument('-t', metavar="FILE", help="Verif NetCDF file to use for Training ", dest="file_training")
