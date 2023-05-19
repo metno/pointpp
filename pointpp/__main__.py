@@ -49,6 +49,7 @@ def main(argv=sys.argv):
     input = verif.input.get_input(args.file)
     eobs = input.obs
     efcst = input.fcst
+    etimes = input.times
 
     if eobs is None:
         pointpp.util.error("No observations available")
@@ -60,6 +61,7 @@ def main(argv=sys.argv):
         input_training = input
     tobs = input_training.obs
     tfcst = input_training.fcst
+    ttimes = input_training.times
 
     if args.dates is not None:
         dates = [verif.util.unixtime_to_date(d) for d in input_training.times]
@@ -110,13 +112,13 @@ def main(argv=sys.argv):
         shutil.copyfile(args.file, args.ofile)
 
         fid = netCDF4.Dataset(args.ofile, 'a')
-        efcst2, eobs2 = calibrate(tobs, tfcst, eobs, efcst, args.method, method, args.leadtime_dependent, args.location_dependent)
+        efcst2, eobs2 = calibrate(tobs, tfcst, etimes, eobs, efcst, e2t_loc, args.method, method, args.leadtime_dependent, args.location_dependent)
         fid.variables["fcst"][:] = efcst2
 
         if "quantile" in fid.variables:
             for i in range(len(fid.variables["quantile"])):
                 curr = input.quantile_scores[..., i]
-                efcst2, _ = calibrate(tobs, tfcst, eobs, curr, args.method, method, args.leadtime_dependent, args.location_dependent)
+                efcst2, _ = calibrate(tobs, tfcst, etimes, eobs, curr, e2t_loc, args.method, method, args.leadtime_dependent, args.location_dependent)
                 fid.variables["x"][:, :, :, i] = efcst2
 
         if eobs2 is not None:
@@ -188,7 +190,7 @@ def write(x, y, filename, header=None):
         file.close()
 
 
-def calibrate(tobs, tfcst, eobs, efcst, method_name, method, leadtime_dependent, location_dependent):
+def calibrate(tobs, tfcst, etimes, eobs, efcst, e2t_loc, method_name, method, leadtime_dependent, location_dependent):
     D = eobs.shape[0]
     LT = eobs.shape[1]
     LOC = eobs.shape[2]
@@ -205,21 +207,20 @@ def calibrate(tobs, tfcst, eobs, efcst, method_name, method, leadtime_dependent,
     elif method_name == "clim":
         """ Climatology methods should always be location, leadtime, and month dependent """
         efcst2 = np.nan * np.zeros(eobs.shape)
-        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
-        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
+        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in etimes])
+        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in etimes]))
         for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
             for i in range(LT):
-                for j in e2t_loc:
-                    jt = e2t_loc[j]
+                for j, jt in enumerate(e2t_loc):
                     tmp = method.calibrate(tobs[I, i, jt].flatten(), tfcst[I, i, jt].flatten(), efcst[I, i, j].flatten())
                     efcst2[I, i, j] = tmp
     elif method_name == "anomaly":
         efcst2 = np.nan * np.zeros(eobs.shape)
         eobs2 = np.nan * np.zeros(eobs.shape)
-        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times])
-        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in input.times]))
+        all_months = np.array([verif.util.unixtime_to_date(t) // 100 % 100 for t in etimes])
+        months = np.unique(np.sort([verif.util.unixtime_to_date(t) // 100 % 100 for t in etimes]))
         for i in range(len(months)):
             month = months[i]
             I = np.where(all_months == month)[0]
