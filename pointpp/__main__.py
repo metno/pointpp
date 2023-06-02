@@ -68,6 +68,8 @@ def main(argv=sys.argv):
         tobs = tobs[Idates, :, :]
         tfcst = tfcst[Idates, :, :]
 
+    print(efcst.shape, tfcst.shape)
+
     method = pointpp.method.get(args.method, args.bins, args.min_obs)
     if method is None:
         if args.method == "bias":
@@ -75,7 +77,7 @@ def main(argv=sys.argv):
         else:
             metric = verif.metric.get(args.method)
         if metric is not None:
-            method = pointpp.method.MyMethod(metric, bins=args.bins,
+            method = pointpp.method.MetricOptimizer(metric, bins=args.bins,
                   monotonic=args.mono, resample=args.resample,
                   midpoint=args.midpoint, min_obs=args.min_obs,
                   min_score=args.min_score, solver=args.solver)
@@ -102,7 +104,8 @@ def main(argv=sys.argv):
             if num_valid_e > 10 and num_valid_f > 10:
                 e2t_loc[Ie[0]] = It[0]
             else:
-                pointpp.util.warning("Not enough valid data for location '%d'" % id)
+                # pointpp.util.warning("Not enough valid data for location '%d'" % id)
+                pass
 
 
     if args.ofile is not None:
@@ -144,8 +147,8 @@ def main(argv=sys.argv):
                 mpl.grid()
                 mpl.show()
         else:
-            cmin = np.min(fcst)
-            cmax = np.max(fcst)
+            cmin = np.nanmin(efcst)
+            cmax = np.nanmax(efcst)
             if args.curve_minmax is not None:
                 cmin = args.curve_minmax[0]
                 cmax = args.curve_minmax[1]

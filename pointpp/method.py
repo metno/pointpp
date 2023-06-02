@@ -402,7 +402,7 @@ class InverseConditional(Curve):
         return [x,y]
 
 
-class MyMethod(Curve):
+class MetricOptimizer(Curve):
     """ Optimizes forecasts relative to a metric """
 
     def __init__(self, metric, bins=[30], monotonic=True, resample=1, midpoint=1, min_obs=0, min_score=None, solver="default"):
@@ -487,10 +487,39 @@ class MyMethod(Curve):
             # thresholds = gridpp.calc_even_quantiles(np.sort(Otrain), int(self._bins[0]))
             thresholds = np.linspace(xmin, xmax, self._bins[0])
         metric = get_gridpp_metric(self._metric)
-        c0, c1 = gridpp.metric_optimizer_curve(Otrain, Ftrain, thresholds, metric)
+        x, y = gridpp.metric_optimizer_curve(Otrain, Ftrain, thresholds, metric)
         if self._monotonic:
-            c0, c1 = gridpp.monotonize_curve(c0, c1)
-        return c0, c1
+            print(np.diff(y))
+            halfway = len(x) // 2
+            for i in range(0, halfway-1):
+                if x[i] > np.nanmin(x[i:-1]):
+                    x[i] = np.nan
+                # x[i] = np.min(x[i:halfway])
+            for i in range(halfway+1, len(x)):
+                if x[i] < np.nanmax(x[0:i]):
+                    x[i] = np.nan
+                # x[i] = np.max(x[0:(i+1)])
+            # Remove missing
+            I = np.where((np.isnan(x) == 0) & (np.isnan(y) == 0))[0]
+            x = x[I]
+            y = y[I]
+            # x, y = gridpp.monotonize_curve(x, y)
+            # y, x = gridpp.monotonize_curve(y, x)
+            print(np.diff(y))
+
+
+        # Remove points where there are too few obs/fcst
+        if self._min_num_data > 0:
+            obs_sort = np.sort(Otrain)
+            fcst_sort = np.sort(Ftrain)
+            assert(len(obs_sort) > 2*self._min_num_data)
+            I = np.where((x >= fcst_sort[self._min_num_data]) & (x <= fcst_sort[-self._min_num_data]) &\
+                         (y >= obs_sort[self._min_num_data]) & (y <= obs_sort[-self._min_num_data]))[0]
+            print("Removing %d of %d" % (len(x) - len(I), len(x)))
+            x = x[I]
+            y = y[I]
+
+        return x, y
 
     def get_curve_orig(self, Otrain, Ftrain, xmin, xmax):
         if len(self._bins) == 1:
